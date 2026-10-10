@@ -73,6 +73,14 @@ body::before {
   z-index: 100;
 }
 
+.auth-container {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
 .user-badge {
   font-family: 'Space Grotesk', sans-serif;
   font-weight: 700;

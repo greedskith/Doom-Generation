@@ -470,11 +470,11 @@ function App() {
           <h1 style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', clip: 'rect(0,0,0,0)' }}>Doom Generation Photo Gallery</h1>
         </a>
         <div className="auth-container">
-          <button type="button" className="btn btn-secondary" onClick={openBuilderDialog} style={{ marginRight: '1rem' }}>
+          <button type="button" className="btn btn-secondary" onClick={openBuilderDialog}>
             [ BUILDER ]
           </button>
           {currentUser ? (
-            <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'wrap', justifyContent: 'center' }}>
+            <>
               <span className="user-badge">{currentUser.displayName}</span>
               <button
                 type="button"
@@ -491,7 +491,7 @@ function App() {
               >
                 Logout
               </button>
-            </div>
+            </>
           ) : (
             <button
               type="button"
