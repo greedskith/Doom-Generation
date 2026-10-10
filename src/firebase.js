@@ -3,26 +3,25 @@ import { getAuth, GoogleAuthProvider } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 
-// ==========================================
-// 🔴 TODO: PASTE YOUR FIREBASE CONFIG HERE
-// ==========================================
 const firebaseConfig = {
-  projectId: "doom-generation",
-  appId: "1:447032774744:web:20a2a41215f253b460ba2d",
-  storageBucket: "doom-generation.firebasestorage.app",
-  apiKey: "AIzaSyD9b5olrraCm8qRPnc8a4V9YVoxeSCW0e4",
-  authDomain: "doom-generation.firebaseapp.com",
-  messagingSenderId: "447032774744",
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID,
 };
 
 let app, auth, db, storage, provider;
 
-if (Object.keys(firebaseConfig).length > 0) {
+if (firebaseConfig.apiKey && firebaseConfig.projectId) {
   app = initializeApp(firebaseConfig);
   auth = getAuth(app);
   db = getFirestore(app);
   storage = getStorage(app);
   provider = new GoogleAuthProvider();
+} else {
+  console.error("Firebase config is missing required environment variables. Ensure .env.local contains VITE_FIREBASE_* keys.");
 }
 
 export { auth, db, storage, provider };
