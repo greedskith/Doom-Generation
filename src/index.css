@@ -144,6 +144,7 @@ body::before {
   content-visibility: auto;
   contain-intrinsic-size: auto 400px;
   container-type: inline-size;
+  min-width: 0;
 }
 
 @container (max-width: 350px) {
@@ -156,7 +157,7 @@ body::before {
     margin-top: 0.5rem;
   }
   .author-signature {
-    font-size: 1.5rem;
+    font-size: 1rem;
   }
 }
 
@@ -194,6 +195,7 @@ body::before {
   display: block;
   cursor: pointer;
   text-align: left;
+  min-width: 0;
 }
 
 .image-container img {
@@ -222,7 +224,7 @@ body::before {
   bottom: 10px;
   right: 15px;
   font-family: 'Mr Dafoe', cursive;
-  font-size: clamp(1.5rem, 1rem + 3vw, 3rem);
+  font-size: clamp(1rem, 0.75rem + 2vw, 2.5rem);
   color: var(--text-primary);
   text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
   pointer-events: none;

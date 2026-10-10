@@ -5,8 +5,7 @@ import { CompositionDoodle } from './components/CompositionDoodle.jsx';
 
 import { signInWithPopup, onAuthStateChanged, signOut } from 'firebase/auth';
 import { collection, onSnapshot, doc, updateDoc, increment, serverTimestamp, query, orderBy, writeBatch, arrayUnion, arrayRemove, getDoc, deleteDoc } from 'firebase/firestore';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { auth, provider, db, storage } from './firebase.js';
+import { auth, provider, db } from './firebase.js';
 
 
 const getImageDimensions = (file) => {
@@ -360,9 +359,25 @@ function App() {
       }
 
       const dimensions = await getImageDimensions(file);
-      const imageRef = ref(storage, `uploads/${currentUser.uid}_${Date.now()}_${file.name}`);
-      const uploadResult = await uploadBytes(imageRef, file);
-      const imageUrl = await getDownloadURL(uploadResult.ref);
+      const cloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME || 'dnw1f6vw';
+      const uploadPreset = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET || 'antigravity';
+
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('upload_preset', uploadPreset);
+
+      const res = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, {
+        method: 'POST',
+        body: formData
+      });
+
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error?.message || "Cloudinary upload failed.");
+      }
+
+      const data = await res.json();
+      const imageUrl = data.secure_url;
       
       const batch = writeBatch(db);
       const newPhotoRef = doc(collection(db, 'photos'));
@@ -374,8 +389,8 @@ function App() {
         userId: currentUser.uid,
         likes: 0,
         likedBy: [],
-        width: dimensions.width,
-        height: dimensions.height,
+        width: data.width || dimensions.width,
+        height: data.height || dimensions.height,
         timestamp: serverTimestamp()
       });
       
