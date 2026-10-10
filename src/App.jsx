@@ -15,72 +15,112 @@ const initialPhotos = [
       url: 'https://images.unsplash.com/photo-1518020382113-a7e8fc38eac9?q=80&w=800&auto=format&fit=crop',
       title: 'Serenity',
       author: 'Jane Doe',
-      likes: 12
+      likes: 12,
+      width: 800,
+      height: 800
   },
   {
       id: '2',
       url: 'https://images.unsplash.com/photo-1493246507139-91e8fad9978e?q=80&w=800&auto=format&fit=crop',
       title: 'Alpine Echo',
       author: 'Alex Smith',
-      likes: 34
+      likes: 34,
+      width: 800,
+      height: 800
   },
   {
       id: '3',
       url: 'https://images.unsplash.com/photo-1469474968028-56623f02e42e?q=80&w=800&auto=format&fit=crop',
       title: 'Wanderlust',
       author: 'Sam Taylor',
-      likes: 8
+      likes: 8,
+      width: 800,
+      height: 800
   },
   {
       id: '4',
       url: 'https://images.unsplash.com/photo-1501854140801-50d01698950b?q=80&w=800&auto=format&fit=crop',
       title: 'Golden Hour',
       author: 'Emily Chen',
-      likes: 56
+      likes: 56,
+      width: 800,
+      height: 800
   },
   {
       id: '5',
       url: 'https://images.unsplash.com/photo-1441974231531-c6227db76b6e?q=80&w=800&auto=format&fit=crop',
       title: 'Deep Woods',
       author: 'Michael B.',
-      likes: 21
+      likes: 21,
+      width: 800,
+      height: 800
   },
   {
       id: '6',
       url: 'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?q=80&w=1920&auto=format&fit=crop',
       title: 'Monolith',
       author: 'James Harrison',
-      likes: 45
+      likes: 45,
+      width: 1920,
+      height: 1080
   },
   {
       id: '7',
       url: 'https://images.unsplash.com/photo-1506744626753-1fa44df14cb0?q=80&w=1920&auto=format&fit=crop',
       title: 'The Portal',
       author: 'Emily Chen',
-      likes: 89
+      likes: 89,
+      width: 1920,
+      height: 1080
   },
   {
       id: '8',
       url: 'https://images.unsplash.com/photo-1522069169874-c58ec4b76be5?q=80&w=1920&auto=format&fit=crop',
       title: 'Equilibrium',
       author: 'David Smith',
-      likes: 112
+      likes: 112,
+      width: 1920,
+      height: 1080
   },
   {
       id: '9',
       url: 'https://images.unsplash.com/photo-1498050108023-c5249f4df085?q=80&w=1920&auto=format&fit=crop',
       title: 'Convergence',
       author: 'Lisa Wang',
-      likes: 67
+      likes: 67,
+      width: 1920,
+      height: 1080
   },
   {
       id: '10',
       url: 'https://images.unsplash.com/photo-1507608616759-54f48f0af0ee?q=80&w=1920&auto=format&fit=crop',
       title: 'Spiral Ascend',
       author: 'Marcus Chen',
-      likes: 234
+      likes: 234,
+      width: 1920,
+      height: 1080
   }
 ];
+
+const getImageDimensions = (file) => {
+  return new Promise((resolve) => {
+    if (typeof window === 'undefined' || !window.Image) {
+      resolve({ width: 800, height: 800 });
+      return;
+    }
+    const img = new Image();
+    const objectUrl = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(objectUrl);
+      resolve({ width: img.naturalWidth || 800, height: img.naturalHeight || 800 });
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(objectUrl);
+      resolve({ width: 800, height: 800 });
+    };
+    img.src = objectUrl;
+  });
+};
 
 const getOptimizedUrl = (url, width) => {
   if (!url) return url;
@@ -88,6 +128,18 @@ const getOptimizedUrl = (url, width) => {
     const parts = url.split('/upload/');
     if (parts.length === 2) {
       return `${parts[0]}/upload/f_auto,q_auto,w_${width}/${parts[1]}`;
+    }
+  }
+  if (url.includes('images.unsplash.com')) {
+    try {
+      const parsed = new URL(url);
+      parsed.searchParams.set('w', width.toString());
+      parsed.searchParams.set('auto', 'format');
+      if (!parsed.searchParams.has('fit')) parsed.searchParams.set('fit', 'crop');
+      if (!parsed.searchParams.has('q')) parsed.searchParams.set('q', '80');
+      return parsed.toString();
+    } catch {
+      return url;
     }
   }
   return url;
@@ -222,6 +274,8 @@ function App() {
           author: photo.author,
           likes: photo.likes,
           likedBy: [],
+          width: photo.width,
+          height: photo.height,
           timestamp: new Date(Date.now() - index * 1000) // stable descending order
         });
       });
@@ -415,6 +469,7 @@ function App() {
         return;
       }
 
+      const dimensions = await getImageDimensions(file);
       const imageRef = ref(storage, `uploads/${currentUser.uid}_${Date.now()}_${file.name}`);
       const uploadResult = await uploadBytes(imageRef, file);
       const imageUrl = await getDownloadURL(uploadResult.ref);
@@ -429,6 +484,8 @@ function App() {
         userId: currentUser.uid,
         likes: 0,
         likedBy: [],
+        width: dimensions.width,
+        height: dimensions.height,
         timestamp: serverTimestamp()
       });
       
@@ -575,6 +632,8 @@ function App() {
         )}
         {photos.map((photo, index) => {
           const isLcpCandidate = index < lcpThreshold;
+          const photoWidth = photo.width || 800;
+          const photoHeight = photo.height || 800;
           return (
             <article
               key={photo.id}
@@ -584,6 +643,7 @@ function App() {
               <button
                 type="button"
                 className="image-container"
+                style={{ aspectRatio: `${photoWidth} / ${photoHeight}` }}
                 aria-haspopup="dialog"
                 aria-label={`View photo ${photo.title} by ${photo.author}`}
                 onClick={(e) => openLightbox(photo, e)}
@@ -591,8 +651,8 @@ function App() {
                 <img
                   src={getOptimizedUrl(photo.url, 800)}
                   alt={photo.title}
-                  width="800"
-                  height="800"
+                  width={photoWidth}
+                  height={photoHeight}
                   {...(isLcpCandidate
                     ? { fetchpriority: "high" }
                     : { loading: "lazy" })}
@@ -801,6 +861,8 @@ function App() {
                   src={getOptimizedUrl(selectedPhoto.url, 1600)}
                   alt={selectedPhoto.title}
                   className="lightbox-image"
+                  width={selectedPhoto.width || 800}
+                  height={selectedPhoto.height || 800}
                 />
                 <CompositionDoodle analysis={analysis} visible={showDoodle} />
                 {isAnalyzing && (

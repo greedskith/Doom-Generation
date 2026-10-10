@@ -39,7 +39,7 @@ body::before {
   background-size: cover;
   opacity: 0.06;
   pointer-events: none;
-  z-index: 50;
+  z-index: 1;
   will-change: transform;
   transform: translateZ(0);
 }
@@ -131,6 +131,8 @@ body::before {
   gap: 2rem;
   max-width: 1800px;
   margin: 0 auto;
+  position: relative;
+  z-index: 2;
 }
 
 .gallery-item {

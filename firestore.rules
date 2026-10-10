@@ -20,7 +20,7 @@ service cloud.firestore {
 
     function hasRequiredPhotoFields() {
       return request.resource.data.keys().hasAll(['url', 'title', 'author', 'userId', 'likes', 'likedBy', 'timestamp']) &&
-             request.resource.data.keys().hasOnly(['url', 'title', 'author', 'userId', 'likes', 'likedBy', 'timestamp']);
+             request.resource.data.keys().hasOnly(['url', 'title', 'author', 'userId', 'likes', 'likedBy', 'timestamp', 'width', 'height']);
     }
 
     function isValidPhotoCreate() {
@@ -37,7 +37,9 @@ service cloud.firestore {
              request.resource.data.author.size() <= 100 &&
              request.resource.data.likes == 0 &&
              request.resource.data.likedBy is list &&
-             request.resource.data.likedBy.size() == 0;
+             request.resource.data.likedBy.size() == 0 &&
+             (!('width' in request.resource.data) || (request.resource.data.width is int && request.resource.data.width > 0)) &&
+             (!('height' in request.resource.data) || (request.resource.data.height is int && request.resource.data.height > 0));
     }
 
     function hasUploadQuota() {
