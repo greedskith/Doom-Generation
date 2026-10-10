@@ -741,7 +741,7 @@ function App() {
               </div>
             </div>
             <div className="lightbox-image-wrap">
-              <div className="lightbox-image-inner">
+              <div className="lightbox-image-inner" style={{ aspectRatio: `${selectedPhoto.width || 800} / ${selectedPhoto.height || 800}` }}>
                 <img
                   src={getOptimizedUrl(selectedPhoto.url, 1600)}
                   alt={selectedPhoto.title}
