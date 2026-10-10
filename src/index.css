@@ -290,6 +290,7 @@ dialog.brutalist-dialog {
   transition: opacity 0.35s ease, transform 0.35s cubic-bezier(0.16, 1, 0.3, 1), overlay 0.35s allow-discrete, display 0.35s allow-discrete;
   opacity: 0;
   transform: scale(0.96);
+  overscroll-behavior: none;
 }
 
 dialog.brutalist-dialog[open] {
