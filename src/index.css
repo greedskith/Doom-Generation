@@ -1,0 +1,548 @@
+/* src/index.css */
+:root {
+  --bg-color: #031211;       /* Ink Black */
+  --text-primary: #E8E4D3;   /* Warm Ivory */
+  --accent: #00AEBB;         /* Electric Teal */
+  --border-color: rgba(232, 228, 211, 0.22);
+  --card-bg: #061e1c;
+  --modal-bg: #041716;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  background-color: var(--bg-color);
+  color: var(--text-primary);
+  font-family: 'Space Grotesk', sans-serif;
+  min-height: 100vh;
+  overflow-x: hidden;
+  position: relative;
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background-image: url('/paper-texture.jpg');
+  background-size: cover;
+  mix-blend-mode: screen;
+  opacity: 0.08;
+  pointer-events: none;
+  z-index: 9999;
+}
+
+/* Accessible Keyboard Focus Ring */
+:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 3px;
+}
+
+.logo {
+  font-family: 'Mr Dafoe', cursive;
+  font-size: clamp(2.5rem, 1.5rem + 4vw, 4.5rem);
+  font-weight: normal;
+  color: var(--text-primary);
+  letter-spacing: 2px;
+  text-shadow: 2px 2px 0px var(--accent);
+  line-height: 1;
+  text-wrap: balance;
+}
+
+.navbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.5rem 4rem;
+  border-bottom: 2px solid var(--text-primary);
+  background: var(--bg-color);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.user-badge {
+  font-family: 'Space Grotesk', sans-serif;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--accent);
+  letter-spacing: 1px;
+}
+
+.btn {
+  padding: 0.75rem 1.5rem;
+  border: 2px solid var(--text-primary);
+  background-color: transparent;
+  color: var(--text-primary);
+  font-family: 'Space Grotesk', sans-serif;
+  font-weight: 700;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 1rem;
+}
+
+.btn:hover:not(:disabled) {
+  background-color: var(--text-primary);
+  color: var(--bg-color);
+}
+
+.btn-primary {
+  background-color: var(--accent);
+  border-color: var(--accent);
+  color: var(--bg-color);
+  font-weight: 800;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background-color: transparent;
+  color: var(--accent);
+}
+
+.btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.gallery-container {
+  padding: 4rem;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+  gap: 2rem;
+  max-width: 1800px;
+  margin: 0 auto;
+}
+
+.gallery-item {
+  display: flex;
+  flex-direction: column;
+  border: 2px solid var(--border-color);
+  background: var(--card-bg);
+  cursor: pointer;
+  transition: border-color 0.25s ease, transform 0.25s ease, box-shadow 0.25s ease;
+  text-align: left;
+}
+
+@supports (animation-timeline: view()) {
+  .gallery-item {
+    animation: fade-in-scale linear both;
+    animation-timeline: view();
+    animation-range: entry 10% cover 25%;
+  }
+}
+
+@keyframes fade-in-scale {
+  from { opacity: 0; transform: scale(0.95) translateY(20px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+.gallery-item:hover,
+.gallery-item:focus-visible {
+  border-color: var(--accent);
+  box-shadow: 0 8px 30px rgba(0, 174, 187, 0.2);
+  transform: translateY(-2px);
+}
+
+.image-container {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  overflow: hidden;
+  border-bottom: 2px solid var(--border-color);
+  background: #111;
+}
+
+.image-container img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  filter: grayscale(20%) contrast(120%);
+  transition: filter 0.3s ease;
+  display: block;
+}
+
+.gallery-item:hover .image-container img,
+.gallery-item:focus-visible .image-container img {
+  filter: grayscale(0%) contrast(120%);
+}
+
+.author-signature {
+  position: absolute;
+  bottom: 10px;
+  right: 15px;
+  font-family: 'Mr Dafoe', cursive;
+  font-size: clamp(1.5rem, 1rem + 3vw, 3rem);
+  color: var(--text-primary);
+  text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+  pointer-events: none;
+  transform: rotate(-5deg);
+  text-wrap: balance;
+}
+
+.item-info {
+  padding: 1.5rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.item-details h3 {
+  font-size: 1.5rem;
+  text-transform: uppercase;
+  font-weight: 700;
+  letter-spacing: 1px;
+}
+
+.like-btn {
+  background: none;
+  border: 2px solid var(--text-primary);
+  padding: 0.5rem 1rem;
+  cursor: pointer;
+  font-family: 'Space Grotesk', sans-serif;
+  font-weight: 700;
+  color: var(--text-primary);
+  text-transform: uppercase;
+  transition: all 0.2s ease;
+}
+
+.like-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.like-btn.liked {
+  background-color: var(--accent);
+  border-color: var(--accent);
+  color: var(--bg-color);
+  font-weight: 800;
+}
+
+/* Native Dialog & Backdrop Styles with Fluid Transitions */
+dialog.brutalist-dialog {
+  border: 2px solid var(--accent);
+  background: var(--modal-bg);
+  color: var(--text-primary);
+  padding: 0;
+  margin: auto;
+  max-width: 90vw;
+  box-shadow: 0 0 45px rgba(0, 174, 187, 0.25);
+  transition: opacity 0.35s ease, transform 0.35s cubic-bezier(0.16, 1, 0.3, 1), overlay 0.35s allow-discrete, display 0.35s allow-discrete;
+  opacity: 0;
+  transform: scale(0.96);
+}
+
+dialog.brutalist-dialog[open] {
+  opacity: 1;
+  transform: scale(1);
+}
+
+@starting-style {
+  dialog.brutalist-dialog[open] {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+}
+
+dialog.brutalist-dialog::backdrop {
+  background: rgba(3, 18, 17, 0);
+  backdrop-filter: blur(6px);
+  transition: background 0.35s ease, overlay 0.35s allow-discrete, display 0.35s allow-discrete;
+}
+
+dialog.brutalist-dialog[open]::backdrop {
+  background: rgba(3, 18, 17, 0.92);
+}
+
+@starting-style {
+  dialog.brutalist-dialog[open]::backdrop {
+    background: rgba(3, 18, 17, 0);
+  }
+}
+
+.post-dialog {
+  width: 100%;
+  max-width: 500px;
+}
+
+.dialog-content {
+  padding: 3rem;
+}
+
+.dialog-content h2 {
+  margin-bottom: 2rem;
+  font-size: 2rem;
+  text-transform: uppercase;
+  color: var(--accent);
+  letter-spacing: 1px;
+}
+
+.input-field {
+  width: 100%;
+  padding: 1rem;
+  margin-bottom: 1.5rem;
+  background: #111;
+  border: 2px solid var(--border-color);
+  color: var(--text-primary);
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 1rem;
+  outline: none;
+}
+
+.input-field:focus {
+  border-color: var(--accent);
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 1rem;
+}
+
+/* Full-Screen Lightbox Dialog */
+.lightbox-dialog {
+  width: 90vw;
+  max-width: 1000px;
+  max-height: 90vh;
+}
+
+.lightbox-content {
+  display: flex;
+  flex-direction: column;
+}
+
+.lightbox-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.5rem 2rem;
+  border-bottom: 2px solid var(--border-color);
+}
+
+.lightbox-header h2 {
+  font-size: 2rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.lightbox-close-btn {
+  font-size: 0.9rem;
+  padding: 0.5rem 1rem;
+}
+
+.lightbox-image-wrap {
+  position: relative;
+  background: #000;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  max-height: 65vh;
+  overflow: hidden;
+}
+
+.lightbox-image-inner {
+  position: relative;
+  display: inline-flex;
+}
+
+.lightbox-image {
+  max-width: 100%;
+  max-height: 65vh;
+  width: auto;
+  height: auto;
+  display: block;
+}
+
+.lightbox-signature {
+  position: absolute;
+  bottom: 20px;
+  right: 30px;
+  font-family: 'Mr Dafoe', cursive;
+  font-size: 3.5rem;
+  color: var(--text-primary);
+  text-shadow: 3px 3px 6px rgba(0,0,0,0.9);
+  pointer-events: none;
+  transform: rotate(-4deg);
+}
+
+/* Doodle Overlay */
+.doodle-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 10;
+}
+
+.doodle-svg {
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.doodle-path, .doodle-crosshair {
+  stroke: var(--accent);
+  stroke-width: 0.5;
+  stroke-linecap: round;
+  fill: none;
+  stroke-dasharray: 2 1;
+  animation: draw-line 2s forwards cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.doodle-target-outer {
+  stroke: var(--accent);
+  stroke-width: 0.3;
+  fill: none;
+  stroke-dasharray: 1 1;
+  animation: pulse-ring 3s infinite linear;
+  transform-origin: center;
+}
+
+.doodle-target-inner {
+  fill: var(--accent);
+}
+
+.doodle-label {
+  fill: var(--text-primary);
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 2px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+  text-shadow: 0 0 2px rgba(0,0,0,1);
+}
+
+@keyframes draw-line {
+  0% { stroke-dashoffset: 100; stroke-dasharray: 100 100; }
+  100% { stroke-dashoffset: 0; stroke-dasharray: 2 1; }
+}
+
+@keyframes pulse-ring {
+  0% { transform: scale(0.9); opacity: 1; }
+  50% { transform: scale(1.1); opacity: 0.6; }
+  100% { transform: scale(0.9); opacity: 1; }
+}
+
+/* Analysis Drawer */
+.analysis-drawer {
+  background: var(--card-bg);
+  border-top: 1px solid var(--border-color);
+  padding: 1.5rem 2rem;
+  font-size: 0.95rem;
+  color: var(--text-primary);
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.analysis-meta {
+  display: flex;
+  gap: 1.5rem;
+  font-weight: 700;
+  font-size: 0.85rem;
+  letter-spacing: 1px;
+}
+
+.analysis-meta span {
+  color: var(--accent);
+}
+
+.analysis-desc {
+  line-height: 1.5;
+  opacity: 0.9;
+}
+
+/* Scanner Animation */
+.scanner-container {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  overflow: hidden;
+  z-index: 10;
+}
+
+.scanner-line {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 2px;
+  background: var(--accent);
+  box-shadow: 0 0 20px 4px var(--accent);
+  animation: scan 1.5s infinite ease-in-out alternate;
+}
+
+@keyframes scan {
+  0% { transform: translateY(0); }
+  100% { transform: translateY(100%); }
+}
+
+.lightbox-footer {
+  padding: 1.5rem 2rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-top: 2px solid var(--border-color);
+  background: #020c0b;
+}
+
+.lightbox-meta {
+  font-size: 1.1rem;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+
+.lightbox-meta strong {
+  color: var(--accent);
+  margin-left: 0.5rem;
+}
+
+/* Responsive Breakpoints */
+@media (max-width: 768px) {
+  .navbar {
+    padding: 1.5rem 1.5rem;
+    flex-direction: column;
+    gap: 1.5rem;
+    text-align: center;
+  }
+  .gallery-container {
+    padding: 2rem 1rem;
+    grid-template-columns: 1fr;
+  }
+  .dialog-content {
+    padding: 2rem 1.5rem;
+  }
+  .lightbox-header,
+  .lightbox-footer {
+    padding: 1rem 1.5rem;
+  }
+}
+
+/* View Transition Animation Speeds & Morphing */
+::view-transition-group(active-photo-morph) {
+  animation-duration: 0.35s;
+  animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+::view-transition-old(active-photo-morph),
+::view-transition-new(active-photo-morph) {
+  animation-duration: 0.35s;
+  animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+  mix-blend-mode: normal;
+  height: 100%;
+  width: 100%;
+}
+
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 0.25s;
+}
