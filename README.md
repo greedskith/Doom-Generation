@@ -1,13 +1,12 @@
 # DOOM GENERATION
 
-Doom Generation is a brutalist photography portfolio with AI composition analysis.
+Doom Generation is an Image Pasteboard. Creative people post their images here. AI analyzes the composition of each image.
 
 ## Features
 
-- **High-contrast dark UI**: Uses Ink Black (`#031211`), Warm Ivory (`#E8E4D3`), and Electric Teal (`#00AEBB`).
-- **AI composition analyzer**: Google Gemini 3.8 Flash examines each photograph for all standard composition rules, such as the Rule of Thirds, the Golden Triangle, and Leading Lines.
+- **Image posting**: Users post their images to the pasteboard.
+- **AI composition analyzer**: Google Gemini 3.8 Flash examines each image for all standard composition rules, such as the Rule of Thirds, the Golden Triangle, and Leading Lines.
 - **SVG overlays**: The app converts AI coordinate data into glowing teal SVG lines.
-- **View transitions**: The View Transitions API animates the change between grid view and full-screen view.
 
 ## Tech Stack
 
