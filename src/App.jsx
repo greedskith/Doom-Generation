@@ -751,7 +751,7 @@ function App() {
                   onClick={closeLightbox}
                   aria-label="Close photo preview"
                 >
-                  [ ESC / CLOSE ]
+                  [ CLOSE ]
                 </button>
               </div>
             </div>

@@ -100,6 +100,7 @@ body::before {
   cursor: pointer;
   transition: all 0.2s ease;
   font-size: 1rem;
+  white-space: nowrap;
 }
 
 .btn:hover:not(:disabled) {
@@ -361,13 +362,15 @@ dialog.brutalist-dialog[open]::backdrop {
 .modal-actions {
   display: flex;
   justify-content: flex-end;
-  gap: 1rem;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
 }
 
 /* Full-Screen Lightbox Dialog */
 .lightbox-dialog {
-  width: 90vw;
-  max-width: 1000px;
+  width: min(94vw, 1400px);
+  max-width: 1400px;
   max-height: 90vh;
 }
 
@@ -375,16 +378,18 @@ dialog.brutalist-dialog[open]::backdrop {
   display: flex;
   flex-direction: column;
   height: 100%;
+  width: 100%;
 }
 
 .lightbox-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 1.5rem 2rem;
+  padding: 1.25rem 2rem;
   border-bottom: 2px solid var(--border-color);
   flex-wrap: wrap;
   gap: 1rem;
+  width: 100%;
 }
 
 .lightbox-header h2 {
@@ -396,6 +401,7 @@ dialog.brutalist-dialog[open]::backdrop {
 .lightbox-close-btn {
   font-size: 0.9rem;
   padding: 0.75rem 1rem;
+  white-space: nowrap;
 }
 
 .lightbox-image-wrap {
@@ -405,6 +411,8 @@ dialog.brutalist-dialog[open]::backdrop {
   justify-content: center;
   align-items: center;
   flex: 1;
+  width: 100%;
+  max-width: 100%;
   min-height: 0;
   overflow: hidden;
 }
@@ -596,10 +604,40 @@ dialog.brutalist-dialog[open]::backdrop {
   }
   .lightbox-header,
   .lightbox-footer {
-    padding: 0.5rem 1rem;
+    padding: 0.75rem 1rem;
+    width: 100%;
+  }
+  .lightbox-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.75rem;
+  }
+  .lightbox-header h2 {
+    font-size: clamp(1.2rem, 4vw, 1.8rem);
+    text-align: left;
+    margin: 0;
+  }
+  .lightbox-header .modal-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    width: 100%;
+    justify-content: flex-start;
+  }
+  .lightbox-header .btn {
+    white-space: nowrap;
+    padding: 0.45rem 0.65rem;
+    font-size: clamp(0.7rem, 2.2vw, 0.825rem);
+    flex: 1 1 auto;
+    text-align: center;
+  }
+  .lightbox-close-btn {
+    padding: 0.45rem 0.65rem;
   }
   .lightbox-image-wrap {
     max-height: 60dvh;
+    width: 100%;
+    max-width: 100%;
   }
   .lightbox-signature {
     font-size: clamp(0.7rem, 0.4rem + 2vw, 1.5rem);
