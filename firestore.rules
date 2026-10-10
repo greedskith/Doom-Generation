@@ -89,7 +89,7 @@ service cloud.firestore {
     // ===============================================================
     match /photos/{photoId} {
       allow read: if true;
-      allow create: if (isValidPhotoCreate() && hasUploadQuota()) || isAdmin();
+      allow create: if isValidPhotoCreate() && isAdmin();
       allow update: if isValidTitleUpdate() || isValidLikeToggle() || isValidAnalysisUpdate();
       allow delete: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
     }

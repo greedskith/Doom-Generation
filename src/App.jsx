@@ -53,6 +53,7 @@ const getOptimizedUrl = (url, width) => {
 
 function App() {
   const [currentUser, setCurrentUser] = useState(null);
+  const [isUploader, setIsUploader] = useState(false);
   const [photos, setPhotos] = useState([]);
   const [selectedPhotoId, setSelectedPhotoId] = useState(null);
   const selectedPhoto = photos.find(p => p.id === selectedPhotoId) || null;
@@ -132,8 +133,18 @@ function App() {
   const closeBuilderDialog = () => builderDialogRef.current?.close();
 
   useEffect(() => {
-    const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
+    const unsubscribeAuth = onAuthStateChanged(auth, async (user) => {
       setCurrentUser(user);
+      if (user && user.email) {
+        try {
+          const adminDoc = await getDoc(doc(db, 'admins', user.email));
+          setIsUploader(adminDoc.exists());
+        } catch (e) {
+          setIsUploader(false);
+        }
+      } else {
+        setIsUploader(false);
+      }
     });
     return () => unsubscribeAuth();
   }, []);
@@ -504,14 +515,16 @@ function App() {
           {currentUser ? (
             <>
               <span className="user-badge">{currentUser.displayName}</span>
-              <button
-                type="button"
-                className="btn btn-primary"
-                onClick={openPostDialog}
-                aria-haspopup="dialog"
-              >
-                POST
-              </button>
+              {isUploader && (
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  onClick={openPostDialog}
+                  aria-haspopup="dialog"
+                >
+                  POST
+                </button>
+              )}
               <button
                 type="button"
                 className="btn btn-secondary"
