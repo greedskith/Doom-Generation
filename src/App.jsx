@@ -8,99 +8,6 @@ import { collection, onSnapshot, doc, updateDoc, increment, serverTimestamp, que
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { auth, provider, db, storage } from './firebase.js';
 
-// Mock Data for Phase 1 Prototype
-const initialPhotos = [
-  {
-      id: '1',
-      url: 'https://images.unsplash.com/photo-1518020382113-a7e8fc38eac9?q=80&w=800&auto=format&fit=crop',
-      title: 'Serenity',
-      author: 'Jane Doe',
-      likes: 12,
-      width: 800,
-      height: 800
-  },
-  {
-      id: '2',
-      url: 'https://images.unsplash.com/photo-1493246507139-91e8fad9978e?q=80&w=800&auto=format&fit=crop',
-      title: 'Alpine Echo',
-      author: 'Alex Smith',
-      likes: 34,
-      width: 800,
-      height: 800
-  },
-  {
-      id: '3',
-      url: 'https://images.unsplash.com/photo-1469474968028-56623f02e42e?q=80&w=800&auto=format&fit=crop',
-      title: 'Wanderlust',
-      author: 'Sam Taylor',
-      likes: 8,
-      width: 800,
-      height: 800
-  },
-  {
-      id: '4',
-      url: 'https://images.unsplash.com/photo-1501854140801-50d01698950b?q=80&w=800&auto=format&fit=crop',
-      title: 'Golden Hour',
-      author: 'Emily Chen',
-      likes: 56,
-      width: 800,
-      height: 800
-  },
-  {
-      id: '5',
-      url: 'https://images.unsplash.com/photo-1441974231531-c6227db76b6e?q=80&w=800&auto=format&fit=crop',
-      title: 'Deep Woods',
-      author: 'Michael B.',
-      likes: 21,
-      width: 800,
-      height: 800
-  },
-  {
-      id: '6',
-      url: 'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?q=80&w=1920&auto=format&fit=crop',
-      title: 'Monolith',
-      author: 'James Harrison',
-      likes: 45,
-      width: 1920,
-      height: 1080
-  },
-  {
-      id: '7',
-      url: 'https://images.unsplash.com/photo-1506744626753-1fa44df14cb0?q=80&w=1920&auto=format&fit=crop',
-      title: 'The Portal',
-      author: 'Emily Chen',
-      likes: 89,
-      width: 1920,
-      height: 1080
-  },
-  {
-      id: '8',
-      url: 'https://images.unsplash.com/photo-1522069169874-c58ec4b76be5?q=80&w=1920&auto=format&fit=crop',
-      title: 'Equilibrium',
-      author: 'David Smith',
-      likes: 112,
-      width: 1920,
-      height: 1080
-  },
-  {
-      id: '9',
-      url: 'https://images.unsplash.com/photo-1498050108023-c5249f4df085?q=80&w=1920&auto=format&fit=crop',
-      title: 'Convergence',
-      author: 'Lisa Wang',
-      likes: 67,
-      width: 1920,
-      height: 1080
-  },
-  {
-      id: '10',
-      url: 'https://images.unsplash.com/photo-1507608616759-54f48f0af0ee?q=80&w=1920&auto=format&fit=crop',
-      title: 'Spiral Ascend',
-      author: 'Marcus Chen',
-      likes: 234,
-      width: 1920,
-      height: 1080
-  }
-];
 
 const getImageDimensions = (file) => {
   return new Promise((resolve) => {
@@ -261,28 +168,6 @@ function App() {
 
   const handleLogout = async () => {
     await signOut(auth);
-  };
-
-  const seedDatabase = async () => {
-    try {
-      const batch = writeBatch(db);
-      initialPhotos.forEach((photo, index) => {
-        const newRef = doc(collection(db, 'photos'));
-        batch.set(newRef, {
-          url: photo.url,
-          title: photo.title,
-          author: photo.author,
-          likes: photo.likes,
-          likedBy: [],
-          width: photo.width,
-          height: photo.height,
-          timestamp: new Date(Date.now() - index * 1000) // stable descending order
-        });
-      });
-      await batch.commit();
-    } catch (err) {
-      showError("Failed to seed database: " + err.message);
-    }
   };
 
   const openPostDialog = (e) => {
@@ -623,11 +508,6 @@ function App() {
           <div style={{ textAlign: 'center', gridColumn: '1 / -1', padding: '4rem' }}>
             <h2>GALLERY EMPTY</h2>
             <p>The real-time database is currently empty.</p>
-            {currentUser && (
-              <button className="btn btn-primary" onClick={seedDatabase} style={{ marginTop: '1rem' }}>
-                [ SEED DEFAULT PHOTOS ]
-              </button>
-            )}
           </div>
         )}
         {photos.map((photo, index) => {
@@ -765,7 +645,7 @@ function App() {
       </dialog>
 
       {/* About the Builder Dialog */}
-      <dialog ref={builderDialogRef} className="brutalist-dialog post-dialog" onClick={(e) => handleBackdropClick(e, closeBuilderDialog)} onCancel={closeBuilderDialog}>
+      <dialog ref={builderDialogRef} className="brutalist-dialog post-dialog" aria-labelledby="builder-dialog-title" onClick={(e) => handleBackdropClick(e, closeBuilderDialog)} onCancel={closeBuilderDialog}>
         <div className="dialog-content">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '2rem' }}>
             <h2 id="builder-dialog-title" style={{ margin: 0 }}>ABOUT THE BUILDER</h2>
@@ -794,7 +674,7 @@ function App() {
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                 <a href="https://github.com/greedskith" target="_blank" rel="noopener noreferrer" className="btn btn-primary" style={{ textDecoration: 'none', textAlign: 'center', display: 'block', padding: '0.75rem' }}>[ GITHUB ]</a>
-                <a href="https://twitter.com" target="_blank" rel="noopener noreferrer" className="btn btn-secondary" style={{ textDecoration: 'none', textAlign: 'center', display: 'block', padding: '0.75rem' }}>[ TWITTER ]</a>
+                <a href="https://twitter.com/greedskith" target="_blank" rel="noopener noreferrer" className="btn btn-secondary" style={{ textDecoration: 'none', textAlign: 'center', display: 'block', padding: '0.75rem' }}>[ TWITTER ]</a>
               </div>
             </div>
           </div>

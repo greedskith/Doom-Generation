@@ -8,7 +8,7 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['dg-favicon.svg', 'dg-favicon.ico', 'dg-apple-icon.png', 'paper-texture.jpg'],
+      includeAssets: ['dg-favicon.svg', 'dg-favicon.ico', 'dg-apple-icon.png', 'paper-texture-compressed.jpg'],
       manifest: {
         name: 'Doom Generation',
         short_name: 'DG',

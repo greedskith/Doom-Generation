@@ -19,6 +19,7 @@ if (firebaseConfig.apiKey && firebaseConfig.projectId) {
   auth = getAuth(app);
   db = getFirestore(app);
   storage = getStorage(app);
+
   provider = new GoogleAuthProvider();
 } else {
   console.error("Firebase config is missing required environment variables. Ensure .env.local contains VITE_FIREBASE_* keys.");
