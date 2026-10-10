@@ -510,14 +510,14 @@ function App() {
                 onClick={openPostDialog}
                 aria-haspopup="dialog"
               >
-                Post
+                POST
               </button>
               <button
                 type="button"
                 className="btn btn-secondary"
                 onClick={handleLogout}
               >
-                Logout
+                [ LOGOUT ]
               </button>
             </>
           ) : (
@@ -526,7 +526,7 @@ function App() {
               className="btn btn-primary"
               onClick={handleLogin}
             >
-              Sign In
+              SIGN IN
             </button>
           )}
         </div>
