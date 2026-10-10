@@ -7,12 +7,12 @@ import { getStorage } from "firebase/storage";
 // 🔴 TODO: PASTE YOUR FIREBASE CONFIG HERE
 // ==========================================
 const firebaseConfig = {
-  // apiKey: "YOUR_API_KEY",
-  // authDomain: "YOUR_AUTH_DOMAIN",
-  // projectId: "YOUR_PROJECT_ID",
-  // storageBucket: "YOUR_STORAGE_BUCKET",
-  // messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
-  // appId: "YOUR_APP_ID"
+  projectId: "doom-generation",
+  appId: "1:447032774744:web:20a2a41215f253b460ba2d",
+  storageBucket: "doom-generation.firebasestorage.app",
+  apiKey: "AIzaSyD9b5olrraCm8qRPnc8a4V9YVoxeSCW0e4",
+  authDomain: "doom-generation.firebaseapp.com",
+  messagingSenderId: "447032774744",
 };
 
 let app, auth, db, storage, provider;

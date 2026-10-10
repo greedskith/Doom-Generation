@@ -1,0 +1,10 @@
+<svg width="64" height="64" viewBox="0 0 85 85" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <g transform="translate(0, -5)">
+    <!-- The 'd' in Sand -->
+    <path d="M 35 40 C 35 25, 15 25, 15 40 C 15 55, 35 55, 35 40 L 35 15 L 35 45 C 35 60, 45 55, 50 40" 
+          stroke="#E8E4D3" stroke-width="8" stroke-linecap="round" stroke-linejoin="round" />
+    <!-- The 'g' in Neon Cyan -->
+    <path d="M 50 40 C 50 25, 70 25, 70 40 C 70 55, 50 55, 50 40 M 70 25 L 70 60 C 70 80, 50 75, 50 65" 
+          stroke="#00AEBB" stroke-width="8" stroke-linecap="round" stroke-linejoin="round" />
+  </g>
+</svg>

@@ -6,6 +6,7 @@
   --border-color: rgba(232, 228, 211, 0.22);
   --card-bg: #061e1c;
   --modal-bg: #041716;
+  color-scheme: dark;
 }
 
 * {
@@ -23,19 +24,24 @@ body {
   position: relative;
 }
 
+html {
+  scroll-behavior: smooth;
+}
+
 body::before {
   content: "";
   position: fixed;
   top: 0;
   left: 0;
   width: 100vw;
-  height: 100vh;
-  background-image: url('/paper-texture.jpg');
+  height: 100dvh;
+  background-image: url('/paper-texture-compressed.jpg');
   background-size: cover;
-  mix-blend-mode: screen;
-  opacity: 0.08;
+  opacity: 0.06;
   pointer-events: none;
-  z-index: 9999;
+  z-index: 50;
+  will-change: transform;
+  transform: translateZ(0);
 }
 
 /* Accessible Keyboard Focus Ring */
@@ -124,9 +130,24 @@ body::before {
   flex-direction: column;
   border: 2px solid var(--border-color);
   background: var(--card-bg);
-  cursor: pointer;
   transition: border-color 0.25s ease, transform 0.25s ease, box-shadow 0.25s ease;
-  text-align: left;
+  content-visibility: auto;
+  contain-intrinsic-size: auto 400px;
+  container-type: inline-size;
+}
+
+@container (max-width: 350px) {
+  .item-info {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .item-info .like-btn {
+    width: 100%;
+    margin-top: 0.5rem;
+  }
+  .author-signature {
+    font-size: 1.5rem;
+  }
 }
 
 @supports (animation-timeline: view()) {
@@ -154,22 +175,36 @@ body::before {
   width: 100%;
   aspect-ratio: 1 / 1;
   overflow: hidden;
+  border: none;
   border-bottom: 2px solid var(--border-color);
   background: #111;
+  appearance: none;
+  padding: 0;
+  margin: 0;
+  display: block;
+  cursor: pointer;
+  text-align: left;
 }
 
 .image-container img {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  filter: grayscale(20%) contrast(120%);
-  transition: filter 0.3s ease;
   display: block;
 }
 
-.gallery-item:hover .image-container img,
-.gallery-item:focus-visible .image-container img {
-  filter: grayscale(0%) contrast(120%);
+.image-container::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.3);
+  transition: opacity 0.3s ease;
+  pointer-events: none;
+}
+
+.gallery-item:hover .image-container::after,
+.image-container:focus-visible::after {
+  opacity: 0;
 }
 
 .author-signature {
@@ -190,6 +225,8 @@ body::before {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  flex-wrap: wrap;
+  gap: 1rem;
 }
 
 .item-details h3 {
@@ -202,7 +239,7 @@ body::before {
 .like-btn {
   background: none;
   border: 2px solid var(--text-primary);
-  padding: 0.5rem 1rem;
+  padding: 0.75rem 1rem;
   cursor: pointer;
   font-family: 'Space Grotesk', sans-serif;
   font-weight: 700;
@@ -276,7 +313,7 @@ dialog.brutalist-dialog[open]::backdrop {
 
 .dialog-content h2 {
   margin-bottom: 2rem;
-  font-size: 2rem;
+  font-size: clamp(1.5rem, 4vw, 2.5rem);
   text-transform: uppercase;
   color: var(--accent);
   letter-spacing: 1px;
@@ -298,6 +335,16 @@ dialog.brutalist-dialog[open]::backdrop {
   border-color: var(--accent);
 }
 
+.input-field:user-valid {
+  border-color: #00ffaa;
+  background: rgba(0, 255, 170, 0.05);
+}
+
+.input-field:user-invalid {
+  border-color: #ff3366;
+  background: rgba(255, 51, 102, 0.05);
+}
+
 .modal-actions {
   display: flex;
   justify-content: flex-end;
@@ -314,6 +361,7 @@ dialog.brutalist-dialog[open]::backdrop {
 .lightbox-content {
   display: flex;
   flex-direction: column;
+  height: 100%;
 }
 
 .lightbox-header {
@@ -322,17 +370,19 @@ dialog.brutalist-dialog[open]::backdrop {
   align-items: center;
   padding: 1.5rem 2rem;
   border-bottom: 2px solid var(--border-color);
+  flex-wrap: wrap;
+  gap: 1rem;
 }
 
 .lightbox-header h2 {
-  font-size: 2rem;
+  font-size: clamp(1.25rem, 5vw, 2.5rem);
   text-transform: uppercase;
   letter-spacing: 1px;
 }
 
 .lightbox-close-btn {
   font-size: 0.9rem;
-  padding: 0.5rem 1rem;
+  padding: 0.75rem 1rem;
 }
 
 .lightbox-image-wrap {
@@ -341,20 +391,24 @@ dialog.brutalist-dialog[open]::backdrop {
   display: flex;
   justify-content: center;
   align-items: center;
-  max-height: 65vh;
+  flex: 1;
+  min-height: 0;
   overflow: hidden;
 }
 
 .lightbox-image-inner {
   position: relative;
   display: inline-flex;
+  max-width: 100%;
+  max-height: 100%;
 }
 
 .lightbox-image {
   max-width: 100%;
-  max-height: 65vh;
+  max-height: 100%;
   width: auto;
   height: auto;
+  object-fit: contain;
   display: block;
 }
 
@@ -363,7 +417,7 @@ dialog.brutalist-dialog[open]::backdrop {
   bottom: 20px;
   right: 30px;
   font-family: 'Mr Dafoe', cursive;
-  font-size: 3.5rem;
+  font-size: clamp(2rem, 1rem + 4vw, 4rem);
   color: var(--text-primary);
   text-shadow: 3px 3px 6px rgba(0,0,0,0.9);
   pointer-events: none;
@@ -472,18 +526,18 @@ dialog.brutalist-dialog[open]::backdrop {
 
 .scanner-line {
   position: absolute;
-  top: 0;
+  top: -100%;
   left: 0;
   width: 100%;
-  height: 2px;
-  background: var(--accent);
-  box-shadow: 0 0 20px 4px var(--accent);
+  height: 100%;
+  border-bottom: 2px solid var(--accent);
+  background: linear-gradient(to bottom, transparent 90%, rgba(0, 174, 187, 0.4) 100%);
   animation: scan 1.5s infinite ease-in-out alternate;
 }
 
 @keyframes scan {
-  0% { transform: translateY(0); }
-  100% { transform: translateY(100%); }
+  0% { transform: translateY(0%); }
+  100% { transform: translateY(200%); }
 }
 
 .lightbox-footer {
@@ -493,10 +547,12 @@ dialog.brutalist-dialog[open]::backdrop {
   align-items: center;
   border-top: 2px solid var(--border-color);
   background: #020c0b;
+  flex-wrap: wrap;
+  gap: 1rem;
 }
 
 .lightbox-meta {
-  font-size: 1.1rem;
+  font-size: clamp(0.9rem, 3vw, 1.2rem);
   letter-spacing: 1px;
   text-transform: uppercase;
 }
@@ -523,7 +579,15 @@ dialog.brutalist-dialog[open]::backdrop {
   }
   .lightbox-header,
   .lightbox-footer {
-    padding: 1rem 1.5rem;
+    padding: 0.5rem 1rem;
+  }
+  dialog.brutalist-dialog {
+    max-width: none;
+    width: 100vw;
+    height: 100dvh;
+    max-height: none;
+    border: none;
+    border-radius: 0;
   }
 }
 
