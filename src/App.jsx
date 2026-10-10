@@ -5,7 +5,8 @@ import { CompositionDoodle } from './components/CompositionDoodle.jsx';
 
 import { signInWithPopup, onAuthStateChanged, signOut } from 'firebase/auth';
 import { collection, onSnapshot, doc, updateDoc, increment, serverTimestamp, query, orderBy, writeBatch, arrayUnion, arrayRemove, getDoc, deleteDoc } from 'firebase/firestore';
-import { auth, provider, db } from './firebase.js';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { auth, provider, db, storage } from './firebase.js';
 
 // Mock Data for Phase 1 Prototype
 const initialPhotos = [
@@ -95,7 +96,8 @@ const getOptimizedUrl = (url, width) => {
 function App() {
   const [currentUser, setCurrentUser] = useState(null);
   const [photos, setPhotos] = useState([]);
-  const [selectedPhoto, setSelectedPhoto] = useState(null);
+  const [selectedPhotoId, setSelectedPhotoId] = useState(null);
+  const selectedPhoto = photos.find(p => p.id === selectedPhotoId) || null;
   const [file, setFile] = useState(null);
   const [title, setTitle] = useState('');
   const [isUploading, setIsUploading] = useState(false);
@@ -106,7 +108,8 @@ function App() {
   const [analysis, setAnalysis] = useState(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [showDoodle, setShowDoodle] = useState(false);
-  const [error, setError] = useState(null);
+  const [globalError, setGlobalError] = useState(null);
+  const [analysisError, setAnalysisError] = useState(null);
   const [announcement, setAnnouncement] = useState('');
   const [assertiveAnnouncement, setAssertiveAnnouncement] = useState('');
 
@@ -120,9 +123,9 @@ function App() {
   };
 
   const showError = (message) => {
-    setError(message);
+    setGlobalError(message);
     announce("Error: " + message, true);
-    setTimeout(() => setError(null), 5000);
+    setTimeout(() => setGlobalError(null), 5000);
   };
 
   const postDialogRef = useRef(null);
@@ -153,6 +156,16 @@ function App() {
     });
     return () => unsubscribeDb();
   }, []);
+
+  useEffect(() => {
+    if (selectedPhotoId && !photos.find(p => p.id === selectedPhotoId)) {
+      lightboxDialogRef.current?.close();
+      setSelectedPhotoId(null);
+      setAnalysis(null);
+      setShowDoodle(false);
+      setIsEditingTitle(false);
+    }
+  }, [photos, selectedPhotoId]);
 
   const handleLogin = async () => {
     try {
@@ -204,8 +217,11 @@ function App() {
     lastFocusedElementRef.current = cardEl || null;
     const cardImg = cardEl?.querySelector('.image-container img');
 
+    setIsEditingTitle(false);
+    setAnalysisError(null);
+
     if (!document.startViewTransition) {
-      setSelectedPhoto(photo);
+      setSelectedPhotoId(photo.id);
       lightboxDialogRef.current?.showModal();
       return;
     }
@@ -219,28 +235,45 @@ function App() {
         cardImg.style.viewTransitionName = 'none';
       }
       flushSync(() => {
-        setSelectedPhoto(photo);
+        setSelectedPhotoId(photo.id);
       });
       lightboxDialogRef.current?.showModal();
+      
+      const lightboxImg = lightboxDialogRef.current?.querySelector('.lightbox-image');
+      if (lightboxImg) {
+        lightboxImg.style.viewTransitionName = 'active-photo-morph';
+      }
     });
 
     transition.finished.finally(() => {
       if (cardImg) {
         cardImg.style.viewTransitionName = 'none';
       }
+      const lightboxImg = lightboxDialogRef.current?.querySelector('.lightbox-image');
+      if (lightboxImg) {
+        lightboxImg.style.viewTransitionName = 'none';
+      }
     });
   };
 
   const closeLightbox = () => {
-    if (!selectedPhoto) return;
-    const photoId = selectedPhoto.id;
+    if (!selectedPhotoId) return;
+    const photoId = selectedPhotoId;
     const cardImg = document.querySelector(`[data-photo-id="${photoId}"] .image-container img`);
+    const lightboxImg = lightboxDialogRef.current?.querySelector('.lightbox-image');
 
     if (!document.startViewTransition) {
       lightboxDialogRef.current?.close();
-      setSelectedPhoto(null);
+      setSelectedPhotoId(null);
       lastFocusedElementRef.current?.focus();
       return;
+    }
+
+    if (lightboxImg) {
+      lightboxImg.style.viewTransitionName = 'active-photo-morph';
+    }
+    if (cardImg) {
+      cardImg.style.viewTransitionName = 'none';
     }
 
     const transition = document.startViewTransition(() => {
@@ -249,7 +282,7 @@ function App() {
       }
       flushSync(() => {
         lightboxDialogRef.current?.close();
-        setSelectedPhoto(null);
+        setSelectedPhotoId(null);
         setAnalysis(null);
         setShowDoodle(false);
         setIsEditingTitle(false);
@@ -265,14 +298,7 @@ function App() {
   };
 
   const handleBackdropClick = (e, closeFn) => {
-    const rect = e.currentTarget.getBoundingClientRect();
-    const isInDialog = (
-      rect.top <= e.clientY &&
-      e.clientY <= rect.top + rect.height &&
-      rect.left <= e.clientX &&
-      e.clientX <= rect.left + rect.width
-    );
-    if (!isInDialog) {
+    if (e.target === e.currentTarget) {
       closeFn();
     }
   };
@@ -293,7 +319,6 @@ function App() {
     if (!selectedPhoto || selectedPhoto.userId !== currentUser?.uid || !editTitleValue.trim()) return;
     try {
       await updateDoc(doc(db, 'photos', selectedPhoto.id), { title: editTitleValue.trim() });
-      setSelectedPhoto(prev => ({ ...prev, title: editTitleValue.trim() }));
       setIsEditingTitle(false);
       announce("Title updated successfully!");
     } catch (err) {
@@ -313,14 +338,14 @@ function App() {
     }
     announce("Analyzing composition...");
     setIsAnalyzing(true);
-    setError(null);
+    setAnalysisError(null);
     try {
       const result = await analyzeComposition(selectedPhoto.url);
       setAnalysis(result);
       setShowDoodle(true);
       announce("Analysis complete. Visual doodle overlaid.");
     } catch (err) {
-      showError(err.message);
+      setAnalysisError(err.message);
       announce(`Error analyzing composition: ${err.message}`, true);
     } finally {
       setIsAnalyzing(false);
@@ -356,19 +381,9 @@ function App() {
         return;
       }
 
-      const formData = new FormData();
-      formData.append('file', file);
-      formData.append('upload_preset', 'antigravity');
-
-      const res = await fetch('https://api.cloudinary.com/v1_1/dnw1f6vw/image/upload', {
-        method: 'POST',
-        body: formData
-      });
-
-      if (!res.ok) throw new Error("Cloudinary upload failed.");
-      
-      const data = await res.json();
-      const imageUrl = data.secure_url;
+      const imageRef = ref(storage, `uploads/${currentUser.uid}_${Date.now()}_${file.name}`);
+      const uploadResult = await uploadBytes(imageRef, file);
+      const imageUrl = await getDownloadURL(uploadResult.ref);
       
       const batch = writeBatch(db);
       const newPhotoRef = doc(collection(db, 'photos'));
@@ -423,27 +438,11 @@ function App() {
           likes: increment(-1),
           likedBy: arrayRemove(currentUser.uid)
         });
-        
-        if (selectedPhoto && selectedPhoto.id === photoId) {
-          setSelectedPhoto(prev => ({ 
-            ...prev, 
-            likes: Math.max(0, (prev.likes || 0) - 1),
-            likedBy: (prev.likedBy || []).filter(uid => uid !== currentUser.uid)
-          }));
-        }
       } else {
         await updateDoc(photoRef, {
           likes: increment(1),
           likedBy: arrayUnion(currentUser.uid)
         });
-        
-        if (selectedPhoto && selectedPhoto.id === photoId) {
-          setSelectedPhoto(prev => ({ 
-            ...prev, 
-            likes: (prev.likes || 0) + 1,
-            likedBy: [...(prev.likedBy || []), currentUser.uid]
-          }));
-        }
       }
     } catch (err) {
       console.error("Error updating like:", err);
@@ -750,7 +749,6 @@ function App() {
                   src={getOptimizedUrl(selectedPhoto.url, 1600)}
                   alt={selectedPhoto.title}
                   className="lightbox-image"
-                  style={{ viewTransitionName: 'active-photo-morph' }}
                 />
                 <CompositionDoodle analysis={analysis} visible={showDoodle} />
                 {isAnalyzing && (
@@ -758,7 +756,7 @@ function App() {
                     <div className="scanner-line"></div>
                   </div>
                 )}
-                {error && (
+                {analysisError && (
                   <div className="error-toast" style={{
                     position: 'absolute', top: '10px', right: '10px',
                     background: 'var(--bg)', color: 'var(--accent)',
@@ -766,7 +764,7 @@ function App() {
                     zIndex: 100, display: 'flex', gap: '10px',
                     alignItems: 'center', fontWeight: 'bold'
                   }}>
-                    <div className="error-text">[ ERROR: {error} ]</div>
+                    <div className="error-text">[ ERROR: {analysisError} ]</div>
                     <button className="brutal-btn" onClick={handleAnalyse}>[ RETRY ]</button>
                   </div>
                 )}
