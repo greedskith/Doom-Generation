@@ -484,8 +484,8 @@ function App() {
       )}
 
       <header className="navbar">
-        <a href="/" style={{ display: 'flex', alignItems: 'center', gap: '1.5rem', textDecoration: 'none' }} aria-label="Home">
-          <svg role="img" aria-label="Doom Generation Logo" width="64" height="64" viewBox="0 0 100 80" fill="none" style={{ overflow: 'visible', flexShrink: 0 }}>
+        <a href="/" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', textDecoration: 'none' }} aria-label="Home">
+          <svg className="navbar-logo" role="img" aria-label="Doom Generation Logo" viewBox="0 0 100 80" fill="none" style={{ overflow: 'visible', flexShrink: 0 }}>
             {/* The 'd' in Sand */}
             <path d="M 35 40 C 35 25, 15 25, 15 40 C 15 55, 35 55, 35 40 L 35 15 L 35 45 C 35 60, 45 55, 50 40" 
                   stroke="var(--text-primary)" strokeWidth="6" strokeLinecap="round" strokeLinejoin="round" 

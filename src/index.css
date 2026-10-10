@@ -73,6 +73,11 @@ body::before {
   z-index: 100;
 }
 
+.navbar-logo {
+  width: 64px;
+  height: 64px;
+}
+
 .auth-container {
   display: flex;
   gap: 1rem;
@@ -590,10 +595,20 @@ dialog.brutalist-dialog[open]::backdrop {
 /* Responsive Breakpoints */
 @media (max-width: 768px) {
   .navbar {
-    padding: 1.5rem 1.5rem;
-    flex-direction: column;
-    gap: 1.5rem;
-    text-align: center;
+    padding: 0.75rem 1rem;
+    flex-direction: row;
+    gap: 0.5rem;
+  }
+  .navbar-logo {
+    width: 40px;
+    height: 40px;
+  }
+  .navbar .btn {
+    padding: 0.4rem 0.5rem;
+    font-size: 0.75rem;
+  }
+  .auth-container {
+    gap: 0.5rem;
   }
   .gallery-container {
     padding: 2rem 1rem;
