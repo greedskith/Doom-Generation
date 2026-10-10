@@ -61,6 +61,12 @@ service cloud.firestore {
              request.resource.data.title.size() <= 100;
     }
 
+    function isValidAnalysisUpdate() {
+      return isAuthenticated() &&
+             request.resource.data.diff(resource.data).affectedKeys().hasOnly(['analysis']) &&
+             request.resource.data.analysis is map;
+    }
+
     function isValidLikeToggle() {
       return isAuthenticated() &&
              request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likes', 'likedBy']) &&
@@ -84,7 +90,7 @@ service cloud.firestore {
     match /photos/{photoId} {
       allow read: if true;
       allow create: if (isValidPhotoCreate() && hasUploadQuota()) || isAdmin();
-      allow update: if isValidTitleUpdate() || isValidLikeToggle();
+      allow update: if isValidTitleUpdate() || isValidLikeToggle() || isValidAnalysisUpdate();
       allow delete: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
     }
 
