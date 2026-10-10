@@ -4,7 +4,7 @@ import { analyzeComposition } from './services/gemini.js';
 import { CompositionDoodle } from './components/CompositionDoodle.jsx';
 
 import { signInWithPopup, onAuthStateChanged, signOut } from 'firebase/auth';
-import { collection, onSnapshot, addDoc, doc, updateDoc, increment, serverTimestamp, query, orderBy, writeBatch, arrayUnion, arrayRemove, getDoc, setDoc, deleteDoc } from 'firebase/firestore';
+import { collection, onSnapshot, doc, updateDoc, increment, serverTimestamp, query, orderBy, writeBatch, arrayUnion, arrayRemove, getDoc, deleteDoc } from 'firebase/firestore';
 import { auth, provider, db } from './firebase.js';
 
 // Mock Data for Phase 1 Prototype
@@ -370,10 +370,13 @@ function App() {
       const data = await res.json();
       const imageUrl = data.secure_url;
       
-      await addDoc(collection(db, 'photos'), {
+      const batch = writeBatch(db);
+      const newPhotoRef = doc(collection(db, 'photos'));
+      
+      batch.set(newPhotoRef, {
         url: imageUrl,
-        title,
-        author: currentUser.displayName,
+        title: title.trim(),
+        author: currentUser.displayName || 'Anonymous',
         userId: currentUser.uid,
         likes: 0,
         likedBy: [],
@@ -381,12 +384,15 @@ function App() {
       });
       
       if (!isAdmin) {
-        if (uploadsThisWeek === 0) {
-          await setDoc(statRef, { uploadsThisWeek: 1, weekStartDate: serverTimestamp() }, { merge: true });
+        const isNewWeek = !statDoc.exists() || (statDoc.exists() && now - (statDoc.data().weekStartDate?.toMillis() || 0) >= oneWeek);
+        if (isNewWeek) {
+          batch.set(statRef, { uploadsThisWeek: 1, weekStartDate: serverTimestamp() });
         } else {
-          await updateDoc(statRef, { uploadsThisWeek: increment(1) });
+          batch.update(statRef, { uploadsThisWeek: increment(1) });
         }
       }
+
+      await batch.commit();
 
       announce("Image uploaded successfully!");
       closePostDialog();
