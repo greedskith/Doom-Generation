@@ -1,9 +1,10 @@
 import { GoogleGenAI, Type } from '@google/genai';
 
 const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+const proxyUrl = import.meta.env.VITE_GEMINI_PROXY_URL;
 let client = null;
 
-if (apiKey) {
+if (apiKey && apiKey !== 'your_gemini_api_key_here') {
   client = new GoogleGenAI({ apiKey });
 }
 
@@ -36,9 +37,25 @@ const MOCK_ANALYSIS = {
 };
 
 export async function analyzeComposition(photoUrl) {
+  // Option 1: Secure Backend Proxy endpoint (if configured)
+  if (proxyUrl) {
+    try {
+      const res = await fetch(proxyUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ photoUrl })
+      });
+      if (!res.ok) throw new Error(`Proxy error: ${res.statusText}`);
+      return await res.json();
+    } catch (err) {
+      console.warn("Backend proxy failed, attempting client fallback:", err);
+    }
+  }
+
+  // Option 2: Direct Gemini Client (Requires key restricted by HTTP Referrers in Google Cloud Console)
   if (!client) {
-    console.warn("No VITE_GEMINI_API_KEY provided. Returning mock analysis.");
-    await new Promise(r => setTimeout(r, 1500));
+    console.warn("No VITE_GEMINI_API_KEY or VITE_GEMINI_PROXY_URL provided. Returning mock analysis.");
+    await new Promise(r => setTimeout(r, 1200));
     return MOCK_ANALYSIS;
   }
 
@@ -104,8 +121,8 @@ The x and y coordinates MUST be numbers between 0 and 100, representing percenta
       }
     });
 
-    const resultText = response.text;
-    const json = JSON.parse(resultText);
+    const rawOutput = typeof response.text === 'function' ? response.text() : response.text;
+    const json = typeof rawOutput === 'string' ? JSON.parse(rawOutput) : rawOutput;
     return json;
   } catch (err) {
     console.error("Gemini Analysis Failed:", err);
