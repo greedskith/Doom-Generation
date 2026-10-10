@@ -741,13 +741,13 @@ function App() {
               </div>
             </div>
             <div className="lightbox-image-wrap">
-              <div className="lightbox-image-inner" style={{ aspectRatio: `${selectedPhoto.width || 800} / ${selectedPhoto.height || 800}` }}>
+              <div className="lightbox-image-inner">
                 <img
                   src={getOptimizedUrl(selectedPhoto.url, 1600)}
                   alt={selectedPhoto.title}
                   className="lightbox-image"
-                  width={selectedPhoto.width || 800}
-                  height={selectedPhoto.height || 800}
+                  {...(selectedPhoto.width ? { width: selectedPhoto.width } : {})}
+                  {...(selectedPhoto.height ? { height: selectedPhoto.height } : {})}
                 />
                 <CompositionDoodle analysis={analysis} visible={showDoodle} />
                 {isAnalyzing && (
