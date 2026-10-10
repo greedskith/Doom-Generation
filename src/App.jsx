@@ -648,20 +648,22 @@ function App() {
       </dialog>
 
       {/* About the Builder Dialog */}
-      <dialog ref={builderDialogRef} className="brutalist-dialog post-dialog" onClick={(e) => handleBackdropClick(e, closeBuilderDialog)}>
-        <div className="post-modal-content">
-          <div className="post-header">
-            <h2>ABOUT THE BUILDER</h2>
-            <button type="button" className="close-btn" onClick={closeBuilderDialog} aria-label="Close builder dialog">[ X ]</button>
+      <dialog ref={builderDialogRef} className="brutalist-dialog post-dialog" onClick={(e) => handleBackdropClick(e, closeBuilderDialog)} onCancel={closeBuilderDialog}>
+        <div className="dialog-content">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '2rem' }}>
+            <h2 id="builder-dialog-title" style={{ margin: 0 }}>ABOUT THE BUILDER</h2>
+            <button type="button" className="btn btn-secondary" onClick={closeBuilderDialog} aria-label="Close builder dialog" style={{ padding: '0.5rem 1rem', flexShrink: 0 }}>[ X ]</button>
           </div>
-          <div style={{ padding: '2rem', display: 'flex', flexDirection: 'column', gap: '1.5rem', color: 'var(--text-primary)' }}>
-            <p style={{ fontSize: '1.25rem', lineHeight: '1.6', margin: 0 }}>
-              <strong>Sagar Ranjan</strong><br /><br />
-              Architecting brutalist, high-performance web experiences using generative AI and modern web standards.
-            </p>
-            <div style={{ display: 'flex', gap: '1rem' }}>
-              <a href="https://github.com/greedskith" target="_blank" rel="noopener noreferrer" className="btn btn-primary" style={{ textDecoration: 'none', textAlign: 'center' }}>[ GITHUB ]</a>
-              <a href="https://twitter.com" target="_blank" rel="noopener noreferrer" className="btn btn-secondary" style={{ textDecoration: 'none', textAlign: 'center' }}>[ TWITTER ]</a>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+            <div style={{ borderLeft: '3px solid var(--accent)', paddingLeft: '1.5rem' }}>
+              <p style={{ fontSize: 'clamp(1.1rem, 2.5vw, 1.4rem)', lineHeight: '1.7', margin: 0, color: 'var(--text-primary)' }}>
+                <strong style={{ fontSize: 'clamp(1.4rem, 3vw, 1.8rem)', display: 'block', marginBottom: '0.75rem', color: 'var(--accent)' }}>SAGAR RANJAN</strong>
+                Architecting brutalist, high-performance web experiences using generative AI and modern web standards. Obsessive about performance, accessibility, and design systems that feel alive.
+              </p>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+              <a href="https://github.com/greedskith" target="_blank" rel="noopener noreferrer" className="btn btn-primary" style={{ textDecoration: 'none', textAlign: 'center', display: 'block', padding: '1rem' }}>[ GITHUB ]</a>
+              <a href="https://twitter.com" target="_blank" rel="noopener noreferrer" className="btn btn-secondary" style={{ textDecoration: 'none', textAlign: 'center', display: 'block', padding: '1rem' }}>[ TWITTER ]</a>
             </div>
           </div>
         </div>
