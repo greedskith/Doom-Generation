@@ -4,7 +4,7 @@ import { analyzeComposition } from './services/gemini.js';
 import { CompositionDoodle } from './components/CompositionDoodle.jsx';
 
 import { signInWithPopup, onAuthStateChanged, signOut } from 'firebase/auth';
-import { collection, onSnapshot, addDoc, doc, updateDoc, increment, serverTimestamp, query, orderBy, writeBatch, arrayUnion, arrayRemove } from 'firebase/firestore';
+import { collection, onSnapshot, addDoc, doc, updateDoc, increment, serverTimestamp, query, orderBy, writeBatch, arrayUnion, arrayRemove, getDoc, setDoc, deleteDoc } from 'firebase/firestore';
 import { auth, provider, db } from './firebase.js';
 
 // Mock Data for Phase 1 Prototype
@@ -99,6 +99,8 @@ function App() {
   const [file, setFile] = useState(null);
   const [title, setTitle] = useState('');
   const [isUploading, setIsUploading] = useState(false);
+  const [isEditingTitle, setIsEditingTitle] = useState(false);
+  const [editTitleValue, setEditTitleValue] = useState('');
   
   // Gemini Analysis State
   const [analysis, setAnalysis] = useState(null);
@@ -125,7 +127,11 @@ function App() {
 
   const postDialogRef = useRef(null);
   const lightboxDialogRef = useRef(null);
+  const builderDialogRef = useRef(null);
   const lastFocusedElementRef = useRef(null);
+
+  const openBuilderDialog = () => builderDialogRef.current?.showModal();
+  const closeBuilderDialog = () => builderDialogRef.current?.close();
 
   useEffect(() => {
     const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
@@ -246,6 +252,7 @@ function App() {
         setSelectedPhoto(null);
         setAnalysis(null);
         setShowDoodle(false);
+        setIsEditingTitle(false);
       });
       lastFocusedElementRef.current?.focus();
     });
@@ -267,6 +274,30 @@ function App() {
     );
     if (!isInDialog) {
       closeFn();
+    }
+  };
+
+  const handleDeletePhoto = async () => {
+    if (!selectedPhoto || selectedPhoto.userId !== currentUser?.uid) return;
+    try {
+      await deleteDoc(doc(db, 'photos', selectedPhoto.id));
+      announce("Photo deleted successfully!");
+      closeLightbox();
+    } catch (err) {
+      showError("Failed to delete photo.");
+    }
+  };
+
+  const handleSaveTitle = async (e) => {
+    e.preventDefault();
+    if (!selectedPhoto || selectedPhoto.userId !== currentUser?.uid || !editTitleValue.trim()) return;
+    try {
+      await updateDoc(doc(db, 'photos', selectedPhoto.id), { title: editTitleValue.trim() });
+      setSelectedPhoto(prev => ({ ...prev, title: editTitleValue.trim() }));
+      setIsEditingTitle(false);
+      announce("Title updated successfully!");
+    } catch (err) {
+      showError("Failed to update title.");
     }
   };
 
@@ -302,6 +333,29 @@ function App() {
     setIsUploading(true);
     
     try {
+      const adminDoc = await getDoc(doc(db, 'admins', currentUser.email || 'invalid'));
+      const isAdmin = adminDoc.exists();
+
+      let statRef = doc(db, 'user_stats', currentUser.uid);
+      let statDoc = await getDoc(statRef);
+      let uploadsThisWeek = 0;
+      const now = Date.now();
+      const oneWeek = 7 * 24 * 60 * 60 * 1000;
+
+      if (statDoc.exists()) {
+        const data = statDoc.data();
+        const start = data.weekStartDate ? data.weekStartDate.toMillis() : 0;
+        if (now - start < oneWeek) {
+          uploadsThisWeek = data.uploadsThisWeek || 0;
+        }
+      }
+
+      if (!isAdmin && uploadsThisWeek >= 5) {
+        showError("[ REJECTED: WEEKLY LIMIT REACHED ]");
+        setIsUploading(false);
+        return;
+      }
+
       const formData = new FormData();
       formData.append('file', file);
       formData.append('upload_preset', 'antigravity');
@@ -320,11 +374,20 @@ function App() {
         url: imageUrl,
         title,
         author: currentUser.displayName,
+        userId: currentUser.uid,
         likes: 0,
         likedBy: [],
         timestamp: serverTimestamp()
       });
       
+      if (!isAdmin) {
+        if (uploadsThisWeek === 0) {
+          await setDoc(statRef, { uploadsThisWeek: 1, weekStartDate: serverTimestamp() }, { merge: true });
+        } else {
+          await updateDoc(statRef, { uploadsThisWeek: increment(1) });
+        }
+      }
+
       announce("Image uploaded successfully!");
       closePostDialog();
     } catch (err) {
@@ -407,6 +470,9 @@ function App() {
           <h1 style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', clip: 'rect(0,0,0,0)' }}>Doom Generation Photo Gallery</h1>
         </a>
         <div className="auth-container">
+          <button type="button" className="btn btn-secondary" onClick={openBuilderDialog} style={{ marginRight: '1rem' }}>
+            [ BUILDER ]
+          </button>
           {currentUser ? (
             <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'wrap', justifyContent: 'center' }}>
               <span className="user-badge">{currentUser.displayName}</span>
@@ -581,6 +647,27 @@ function App() {
         </div>
       </dialog>
 
+      {/* About the Builder Dialog */}
+      <dialog ref={builderDialogRef} className="brutalist-dialog post-dialog" onClick={(e) => handleBackdropClick(e, closeBuilderDialog)}>
+        <div className="post-modal-content">
+          <div className="post-header">
+            <h2>ABOUT THE BUILDER</h2>
+            <button type="button" className="close-btn" onClick={closeBuilderDialog} aria-label="Close builder dialog">[ X ]</button>
+          </div>
+          <div style={{ padding: '2rem', display: 'flex', flexDirection: 'column', gap: '1.5rem', color: 'var(--text-primary)' }}>
+            <p style={{ fontSize: '1.25rem', lineHeight: '1.6', margin: 0 }}>
+              <strong>Sagar Ranjan</strong><br /><br />
+              Architecting brutalist, high-performance web experiences using generative AI and modern web standards.
+            </p>
+            <div style={{ display: 'flex', gap: '1rem' }}>
+              <a href="https://github.com/greedskith" target="_blank" rel="noopener noreferrer" className="btn btn-primary" style={{ textDecoration: 'none', textAlign: 'center' }}>[ GITHUB ]</a>
+              <a href="https://twitter.com" target="_blank" rel="noopener noreferrer" className="btn btn-secondary" style={{ textDecoration: 'none', textAlign: 'center' }}>[ TWITTER ]</a>
+            </div>
+          </div>
+        </div>
+      </dialog>
+
+
       {/* Native <dialog> for Photo Lightbox */}
       <dialog
         ref={lightboxDialogRef}
@@ -592,8 +679,28 @@ function App() {
         {selectedPhoto && (
           <div className="lightbox-content">
             <div className="lightbox-header">
-              <h2 id="lightbox-title">{selectedPhoto.title}</h2>
+              {isEditingTitle ? (
+                <form onSubmit={handleSaveTitle} style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                  <input 
+                    type="text" 
+                    value={editTitleValue} 
+                    onChange={(e) => setEditTitleValue(e.target.value)}
+                    autoFocus
+                    style={{ background: 'transparent', border: '2px solid var(--accent)', color: 'var(--text-primary)', padding: '0.25rem 0.5rem', fontFamily: 'inherit', fontSize: '1.25rem' }}
+                  />
+                  <button type="submit" className="btn btn-primary">[ SAVE ]</button>
+                  <button type="button" className="btn btn-secondary" onClick={() => setIsEditingTitle(false)}>[ CANCEL ]</button>
+                </form>
+              ) : (
+                <h2 id="lightbox-title">{selectedPhoto.title}</h2>
+              )}
               <div className="modal-actions">
+                {currentUser && selectedPhoto.userId === currentUser.uid && !isEditingTitle && (
+                  <>
+                    <button type="button" className="btn btn-secondary" onClick={() => { setIsEditingTitle(true); setEditTitleValue(selectedPhoto.title); }}>[ EDIT ]</button>
+                    <button type="button" className="btn btn-secondary" onClick={handleDeletePhoto} style={{ color: '#ff4d4d', borderColor: '#ff4d4d' }}>[ DELETE ]</button>
+                  </>
+                )}
                 <button
                   type="button"
                   className="btn btn-primary"
