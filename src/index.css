@@ -338,11 +338,12 @@ dialog.brutalist-dialog[open]::backdrop {
   color: var(--text-primary);
   font-family: 'Space Grotesk', sans-serif;
   font-size: 1rem;
-  outline: none;
+  /* outline: none removed for a11y */
 }
 
 .input-field:focus {
   border-color: var(--accent);
+  outline: 2px solid var(--accent);
 }
 
 .input-field:user-valid {

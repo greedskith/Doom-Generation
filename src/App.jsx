@@ -105,12 +105,15 @@ function App() {
   }, []);
 
   const announce = (message, assertive = false) => {
-    if (assertive) setAssertiveAnnouncement(message);
-    else setAnnouncement(message);
-    setTimeout(() => {
-      if (assertive) setAssertiveAnnouncement('');
-      else setAnnouncement('');
-    }, 6000);
+    if (assertive) {
+      setAssertiveAnnouncement(message);
+      if (assertiveTimerRef.current) clearTimeout(assertiveTimerRef.current);
+      assertiveTimerRef.current = setTimeout(() => setAssertiveAnnouncement(''), 6000);
+    } else {
+      setAnnouncement(message);
+      if (announcementTimerRef.current) clearTimeout(announcementTimerRef.current);
+      announcementTimerRef.current = setTimeout(() => setAnnouncement(''), 6000);
+    }
   };
 
   const showError = (message) => {
@@ -123,6 +126,8 @@ function App() {
   const lightboxDialogRef = useRef(null);
   const builderDialogRef = useRef(null);
   const lastFocusedElementRef = useRef(null);
+  const announcementTimerRef = useRef(null);
+  const assertiveTimerRef = useRef(null);
 
   const openBuilderDialog = () => builderDialogRef.current?.showModal();
   const closeBuilderDialog = () => builderDialogRef.current?.close();
