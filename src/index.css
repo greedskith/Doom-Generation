@@ -600,9 +600,9 @@ dialog.brutalist-dialog[open]::backdrop {
     max-height: 60dvh;
   }
   .lightbox-signature {
-    font-size: clamp(0.9rem, 0.5rem + 3vw, 2rem);
-    bottom: 12px;
-    right: 16px;
+    font-size: clamp(0.7rem, 0.4rem + 2vw, 1.5rem);
+    bottom: 8px;
+    right: 12px;
   }
   dialog.brutalist-dialog {
     max-width: none;
