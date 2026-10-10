@@ -113,6 +113,38 @@ function App() {
   const [announcement, setAnnouncement] = useState('');
   const [assertiveAnnouncement, setAssertiveAnnouncement] = useState('');
 
+  // Dynamic LCP candidate determination based on responsive viewport width (BUG-12)
+  const [lcpThreshold, setLcpThreshold] = useState(() => {
+    if (typeof window === 'undefined') return 4;
+    if (window.matchMedia('(min-width: 1440px)').matches) return 6;
+    if (window.matchMedia('(min-width: 768px)').matches) return 4;
+    return 2;
+  });
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const updateThreshold = () => {
+      if (window.matchMedia('(min-width: 1440px)').matches) {
+        setLcpThreshold(6);
+      } else if (window.matchMedia('(min-width: 768px)').matches) {
+        setLcpThreshold(4);
+      } else {
+        setLcpThreshold(2);
+      }
+    };
+
+    const mqWide = window.matchMedia('(min-width: 1440px)');
+    const mqDesktop = window.matchMedia('(min-width: 768px)');
+
+    mqWide.addEventListener('change', updateThreshold);
+    mqDesktop.addEventListener('change', updateThreshold);
+
+    return () => {
+      mqWide.removeEventListener('change', updateThreshold);
+      mqDesktop.removeEventListener('change', updateThreshold);
+    };
+  }, []);
+
   const announce = (message, assertive = false) => {
     if (assertive) setAssertiveAnnouncement(message);
     else setAnnouncement(message);
@@ -310,6 +342,7 @@ function App() {
       announce("Photo deleted successfully!");
       closeLightbox();
     } catch (err) {
+      console.error("Failed to delete photo:", err);
       showError("Failed to delete photo.");
     }
   };
@@ -322,6 +355,7 @@ function App() {
       setIsEditingTitle(false);
       announce("Title updated successfully!");
     } catch (err) {
+      console.error("Failed to update title:", err);
       showError("Failed to update title.");
     }
   };
@@ -460,6 +494,24 @@ function App() {
         {assertiveAnnouncement}
       </div>
 
+      {globalError && (
+        <div role="alert" className="error-toast" style={{
+          position: 'fixed',
+          bottom: '2rem',
+          right: '2rem',
+          backgroundColor: '#ff3366',
+          color: '#ffffff',
+          padding: '1rem 1.5rem',
+          border: '2px solid #000',
+          boxShadow: '4px 4px 0px #000',
+          zIndex: 1000,
+          fontWeight: 'bold',
+          fontFamily: 'monospace'
+        }}>
+          {globalError}
+        </div>
+      )}
+
       <header className="navbar">
         <a href="/" style={{ display: 'flex', alignItems: 'center', gap: '1.5rem', textDecoration: 'none' }} aria-label="Home">
           <svg role="img" aria-label="Doom Generation Logo" width="64" height="64" viewBox="0 0 100 80" fill="none" style={{ overflow: 'visible', flexShrink: 0 }}>
@@ -522,7 +574,7 @@ function App() {
           </div>
         )}
         {photos.map((photo, index) => {
-          const isLcpCandidate = index < 2;
+          const isLcpCandidate = index < lcpThreshold;
           return (
             <article
               key={photo.id}
