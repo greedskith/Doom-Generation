@@ -63,14 +63,18 @@ function App() {
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [editTitleValue, setEditTitleValue] = useState('');
   
-  // Gemini Analysis State
-  const [analysis, setAnalysis] = useState(null);
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [showDoodle, setShowDoodle] = useState(false);
+  // Gemini Analysis State - Isolated per photo ID
+  const [analyzingPhotoId, setAnalyzingPhotoId] = useState(null);
+  const [doodleVisiblePhotoIds, setDoodleVisiblePhotoIds] = useState({});
+  const [localAnalyses, setLocalAnalyses] = useState({});
   const [globalError, setGlobalError] = useState(null);
   const [analysisError, setAnalysisError] = useState(null);
   const [announcement, setAnnouncement] = useState('');
   const [assertiveAnnouncement, setAssertiveAnnouncement] = useState('');
+
+  const currentAnalysis = selectedPhoto?.analysis || (selectedPhoto ? localAnalyses[selectedPhoto.id] : null);
+  const isCurrentPhotoAnalyzing = Boolean(selectedPhoto && analyzingPhotoId === selectedPhoto.id);
+  const isDoodleVisible = Boolean(selectedPhoto && currentAnalysis && doodleVisiblePhotoIds[selectedPhoto.id]);
 
   // Dynamic LCP candidate determination based on responsive viewport width (BUG-12)
   const [lcpThreshold, setLcpThreshold] = useState(() => {
@@ -167,8 +171,7 @@ function App() {
     if (selectedPhotoId && !photos.find(p => p.id === selectedPhotoId)) {
       lightboxDialogRef.current?.close();
       setSelectedPhotoId(null);
-      setAnalysis(null);
-      setShowDoodle(false);
+      setAnalysisError(null);
       setIsEditingTitle(false);
     }
   }, [photos, selectedPhotoId]);
@@ -205,6 +208,11 @@ function App() {
 
     setIsEditingTitle(false);
     setAnalysisError(null);
+
+    // If photo has an existing analysis and visibility hasn't been set yet, show it by default
+    if ((photo.analysis || localAnalyses[photo.id]) && doodleVisiblePhotoIds[photo.id] === undefined) {
+      setDoodleVisiblePhotoIds(prev => ({ ...prev, [photo.id]: true }));
+    }
 
     if (!document.startViewTransition) {
       setSelectedPhotoId(photo.id);
@@ -248,6 +256,9 @@ function App() {
     const cardImg = document.querySelector(`[data-photo-id="${photoId}"] .image-container img`);
     const lightboxImg = lightboxDialogRef.current?.querySelector('.lightbox-image');
 
+    setAnalysisError(null);
+    setIsEditingTitle(false);
+
     if (!document.startViewTransition) {
       lightboxDialogRef.current?.close();
       setSelectedPhotoId(null);
@@ -269,9 +280,6 @@ function App() {
       flushSync(() => {
         lightboxDialogRef.current?.close();
         setSelectedPhotoId(null);
-        setAnalysis(null);
-        setShowDoodle(false);
-        setIsEditingTitle(false);
       });
       lastFocusedElementRef.current?.focus();
     });
@@ -316,36 +324,41 @@ function App() {
 
   const handleAnalyse = async () => {
     if (!selectedPhoto) return;
-    if (showDoodle && analysis) {
-      setShowDoodle(false);
-      return;
-    }
-    if (!showDoodle && analysis) {
-      setShowDoodle(true);
+    const targetId = selectedPhoto.id;
+    const targetUrl = selectedPhoto.url;
+    const existingAnalysis = selectedPhoto.analysis || localAnalyses[targetId];
+
+    // If analysis already exists for this photo, toggle its doodle overlay
+    if (existingAnalysis) {
+      const nextVisible = !doodleVisiblePhotoIds[targetId];
+      setDoodleVisiblePhotoIds(prev => ({
+        ...prev,
+        [targetId]: nextVisible
+      }));
+      announce(nextVisible ? "Visual doodle overlaid." : "Visual doodle hidden.");
       return;
     }
 
-    if (selectedPhoto.analysis) {
-      setAnalysis(selectedPhoto.analysis);
-      setShowDoodle(true);
-      announce("Loaded cached analysis.");
-      return;
-    }
+    // Guard against multiple clicks while currently analyzing this photo
+    if (analyzingPhotoId === targetId) return;
 
     announce("Analyzing composition...");
-    setIsAnalyzing(true);
+    setAnalyzingPhotoId(targetId);
     setAnalysisError(null);
+
     try {
-      const result = await analyzeComposition(selectedPhoto.url);
-      await updateDoc(doc(db, 'photos', selectedPhoto.id), { analysis: result });
-      setAnalysis(result);
-      setShowDoodle(true);
+      const result = await analyzeComposition(targetUrl);
+      setLocalAnalyses(prev => ({ ...prev, [targetId]: result }));
+      setDoodleVisiblePhotoIds(prev => ({ ...prev, [targetId]: true }));
+      await updateDoc(doc(db, 'photos', targetId), { analysis: result });
       announce("Analysis complete. Visual doodle overlaid.");
     } catch (err) {
-      setAnalysisError(err.message);
+      if (selectedPhotoId === targetId) {
+        setAnalysisError(err.message);
+      }
       announce(`Error analyzing composition: ${err.message}`, true);
     } finally {
-      setIsAnalyzing(false);
+      setAnalyzingPhotoId(prev => (prev === targetId ? null : prev));
     }
   };
 
@@ -763,9 +776,13 @@ function App() {
                   type="button"
                   className="btn btn-primary"
                   onClick={handleAnalyse}
-                  disabled={isAnalyzing}
+                  disabled={isCurrentPhotoAnalyzing}
                 >
-                  {isAnalyzing ? '[ ANALYSING... ]' : (showDoodle ? '[ HIDE DOODLE ]' : '[ ANALYSE COMPOSITION ]')}
+                  {isCurrentPhotoAnalyzing
+                    ? '[ ANALYSING... ]'
+                    : currentAnalysis
+                      ? (isDoodleVisible ? '[ HIDE DOODLE ]' : '[ SHOW DOODLE ]')
+                      : '[ ANALYSE COMPOSITION ]'}
                 </button>
                 <button
                   type="button"
@@ -786,8 +803,8 @@ function App() {
                   {...(selectedPhoto.width ? { width: selectedPhoto.width } : {})}
                   {...(selectedPhoto.height ? { height: selectedPhoto.height } : {})}
                 />
-                <CompositionDoodle analysis={analysis} visible={showDoodle} />
-                {isAnalyzing && (
+                <CompositionDoodle analysis={currentAnalysis} visible={isDoodleVisible} />
+                {isCurrentPhotoAnalyzing && (
                   <div className="scanner-container">
                     <div className="scanner-line"></div>
                   </div>
