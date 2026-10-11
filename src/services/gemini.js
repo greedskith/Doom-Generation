@@ -84,12 +84,52 @@ function getAnalysisImageUrl(url) {
   return url;
 }
 
+// Validate URL to prevent client-side SSRF and intranet probing
+function isSafeImageUrl(rawUrl) {
+  if (typeof rawUrl !== 'string') return false;
+  if (rawUrl.startsWith('data:') || rawUrl.startsWith('blob:')) return true;
+
+  try {
+    const parsed = new URL(rawUrl);
+    if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') return false;
+
+    const host = parsed.hostname.toLowerCase();
+
+    // Reject localhost, loopback, and private IPv4/IPv6 ranges
+    if (
+      host === 'localhost' ||
+      host === '127.0.0.1' ||
+      host === '::1' ||
+      host === '0.0.0.0' ||
+      host.startsWith('10.') ||
+      host.startsWith('192.168.') ||
+      /^172\.(1[6-9]|2\d|3[0-1])\./.test(host) ||
+      host.endsWith('.local') ||
+      host.endsWith('.internal')
+    ) {
+      return false;
+    }
+
+    // Allow Cloudinary CDN or same origin
+    const isCloudinary = host === 'res.cloudinary.com' || host.endsWith('.cloudinary.com');
+    const isSameOrigin = typeof window !== 'undefined' && host === window.location.hostname;
+
+    return isCloudinary || isSameOrigin;
+  } catch {
+    return false;
+  }
+}
+
 // Convert an image URL or Blob URL to a Base64 string using fetch and FileReader
 async function urlToBase64(url) {
   if (url.startsWith('data:')) {
     const parts = url.split(',');
     const mimeType = parts[0].split(':')[1].split(';')[0];
     return { b64: parts[1], mimeType };
+  }
+
+  if (!isSafeImageUrl(url)) {
+    throw new Error('Image URL must point to a trusted image host (e.g. Cloudinary).');
   }
 
   const optimizedUrl = getAnalysisImageUrl(url);

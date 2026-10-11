@@ -42,15 +42,6 @@ service cloud.firestore {
              (!('height' in request.resource.data) || (request.resource.data.height is int && request.resource.data.height > 0));
     }
 
-    function hasUploadQuota() {
-      let stats = getAfter(/databases/$(database)/documents/user_stats/$(request.auth.uid));
-      return isAdmin() || (
-        stats != null &&
-        stats.data.uploadsThisWeek is int &&
-        stats.data.uploadsThisWeek >= 1 &&
-        stats.data.uploadsThisWeek <= 5
-      );
-    }
 
     function isValidTitleUpdate() {
       return isAuthenticated() &&
@@ -63,8 +54,12 @@ service cloud.firestore {
 
     function isValidAnalysisUpdate() {
       return isAuthenticated() &&
+             (isOwner(resource.data.userId) || isAdmin() || !('analysis' in resource.data)) &&
              request.resource.data.diff(resource.data).affectedKeys().hasOnly(['analysis']) &&
-             request.resource.data.analysis is map;
+             request.resource.data.analysis is map &&
+             request.resource.data.analysis.rule is string &&
+             request.resource.data.analysis.focalPoints is list &&
+             (!('lines' in request.resource.data.analysis) || request.resource.data.analysis.lines is list);
     }
 
     function isValidLikeToggle() {
@@ -75,10 +70,14 @@ service cloud.firestore {
              (
                // Like: Increment by 1 and user ID added
                (request.resource.data.likes == resource.data.likes + 1 &&
+                request.resource.data.likedBy.hasAll(resource.data.likedBy) &&
+                request.resource.data.likedBy.size() == resource.data.likedBy.size() + 1 &&
                 !resource.data.likedBy.hasAny([request.auth.uid]) &&
                 request.resource.data.likedBy.hasAll([request.auth.uid])) ||
                // Unlike: Decrement by 1 and user ID removed
                (request.resource.data.likes == resource.data.likes - 1 &&
+                resource.data.likedBy.hasAll(request.resource.data.likedBy) &&
+                request.resource.data.likedBy.size() == resource.data.likedBy.size() - 1 &&
                 resource.data.likedBy.hasAny([request.auth.uid]) &&
                 !request.resource.data.likedBy.hasAny([request.auth.uid]))
              );
@@ -95,7 +94,8 @@ service cloud.firestore {
     }
 
     match /admins/{email} {
-      allow read: if isAuthenticated();
+      allow get: if isAuthenticated() && request.auth.token.email == email;
+      allow list: if false;
       allow write: if false;
     }
 

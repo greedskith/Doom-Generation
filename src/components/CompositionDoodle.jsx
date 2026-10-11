@@ -27,7 +27,7 @@ export function CompositionDoodle({ analysis, visible }) {
       case 'Half and Half':
         return (
           <g className="doodle-grid" opacity="0.4">
-            {lines && lines[0] ? (
+            {Array.isArray(lines) && lines[0] ? (
               <line x1={lines[0].x1} y1={lines[0].y1} x2={lines[0].x2} y2={lines[0].y2} stroke="var(--accent)" strokeWidth="0.2" strokeDasharray="1 1" />
             ) : (
               <line x1="0" y1="50" x2="100" y2="50" stroke="var(--accent)" strokeWidth="0.2" strokeDasharray="1 1" />
@@ -38,7 +38,7 @@ export function CompositionDoodle({ analysis, visible }) {
         // Render dynamic lines and focal points
         return (
           <>
-            {lines?.map((line, idx) => (
+            {Array.isArray(lines) && lines.map((line, idx) => (
               <g key={`line-${idx}`} className="doodle-line-group" filter="url(#neon-glow)">
                 <line x1={line.x1} y1={line.y1} x2={line.x2} y2={line.y2} className="doodle-path" />
                 {line.label && (
@@ -68,7 +68,7 @@ export function CompositionDoodle({ analysis, visible }) {
 
         {renderDoodles()}
 
-        {focalPoints?.map((focal, idx) => (
+        {Array.isArray(focalPoints) && focalPoints.map((focal, idx) => (
           <g key={`focal-${idx}`} className="doodle-focal-group" filter="url(#neon-glow)">
             <circle cx={focal.x} cy={focal.y} r="3" className="doodle-target-outer" />
             <circle cx={focal.x} cy={focal.y} r="0.5" className="doodle-target-inner" />

@@ -350,7 +350,12 @@ function App() {
       const result = await analyzeComposition(targetUrl);
       setLocalAnalyses(prev => ({ ...prev, [targetId]: result }));
       setDoodleVisiblePhotoIds(prev => ({ ...prev, [targetId]: true }));
-      await updateDoc(doc(db, 'photos', targetId), { analysis: result });
+      try {
+        await updateDoc(doc(db, 'photos', targetId), { analysis: result });
+      } catch (firestoreErr) {
+        // If Firestore write fails (e.g. non-owner), analysis remains active in local session
+        console.info("Analysis preserved in local session:", firestoreErr?.message);
+      }
       announce("Analysis complete. Visual doodle overlaid.");
     } catch (err) {
       if (selectedPhotoId === targetId) {
