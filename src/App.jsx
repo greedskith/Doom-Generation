@@ -30,23 +30,26 @@ const getImageDimensions = (file) => {
 
 const getOptimizedUrl = (url, width) => {
   if (!url) return url;
-  if (url.includes('res.cloudinary.com')) {
-    const parts = url.split('/upload/');
-    if (parts.length === 2) {
-      return `${parts[0]}/upload/f_auto,q_auto,w_${width}/${parts[1]}`;
+  try {
+    const parsed = new URL(url);
+    const host = parsed.hostname.toLowerCase();
+
+    if (host === 'res.cloudinary.com' || host.endsWith('.cloudinary.com')) {
+      const parts = url.split('/upload/');
+      if (parts.length === 2) {
+        return `${parts[0]}/upload/f_auto,q_auto,w_${width}/${parts[1]}`;
+      }
     }
-  }
-  if (url.includes('images.unsplash.com')) {
-    try {
-      const parsed = new URL(url);
+
+    if (host === 'images.unsplash.com' || host.endsWith('.unsplash.com')) {
       parsed.searchParams.set('w', width.toString());
       parsed.searchParams.set('auto', 'format');
       if (!parsed.searchParams.has('fit')) parsed.searchParams.set('fit', 'crop');
       if (!parsed.searchParams.has('q')) parsed.searchParams.set('q', '80');
       return parsed.toString();
-    } catch {
-      return url;
     }
+  } catch {
+    return url;
   }
   return url;
 };

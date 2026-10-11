@@ -75,11 +75,17 @@ The x and y coordinates MUST be numbers between 0 and 100, representing percenta
 // Optimize image URL for Gemini Vision (compress & cap dimensions to 1024px to prevent multi-megabyte payloads)
 function getAnalysisImageUrl(url) {
   if (!url) return url;
-  if (url.includes('res.cloudinary.com')) {
-    const parts = url.split('/upload/');
-    if (parts.length === 2) {
-      return `${parts[0]}/upload/f_jpg,q_auto:good,w_1024,c_limit/${parts[1]}`;
+  try {
+    const parsed = new URL(url);
+    const host = parsed.hostname.toLowerCase();
+    if (host === 'res.cloudinary.com' || host.endsWith('.cloudinary.com')) {
+      const parts = url.split('/upload/');
+      if (parts.length === 2) {
+        return `${parts[0]}/upload/f_jpg,q_auto:good,w_1024,c_limit/${parts[1]}`;
+      }
     }
+  } catch {
+    return url;
   }
   return url;
 }
