@@ -28,5 +28,8 @@
   "allowScripts": {
     "@google/genai@2.28.0": true,
     "protobufjs@7.6.6": true
+  },
+  "overrides": {
+    "@grpc/grpc-js": ">=1.13.6"
   }
 }
