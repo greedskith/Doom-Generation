@@ -6,8 +6,8 @@ Doom Generation is a single-version web application. The latest deployment on Fi
 
 | Version | Supported |
 | ------- | --------- |
-| Latest (main) | ✅ |
-| Older commits | ❌ |
+| Latest (main) | YES |
+| Older commits | NO |
 
 ## Credential & Secret Handling
 
