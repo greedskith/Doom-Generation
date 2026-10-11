@@ -8,6 +8,66 @@ if (apiKey && apiKey !== 'your_gemini_api_key_here') {
   client = new GoogleGenAI({ apiKey });
 }
 
+// Quality-ranked fallback chain. All verified as free-tier capable.
+// The waterfall tries each model in order, falling through only on
+// retryable errors (429 quota exhausted, 503 demand spike).
+const FALLBACK_MODELS = [
+  'gemini-3.8-flash',     // 1. Highest Flash quality (20 req/day free)
+  'gemini-3.7-flash',     // 2. High-precision fallback
+  'gemini-3.6-flash',     // 3. Stable workhorse
+  'gemini-3.5-flash',     // 4. Broad-quota backup
+  'gemini-3.5-flash-lite' // 5. Ultra-fast safety net
+];
+
+// HTTP status codes that should trigger the next model in the chain.
+// 429 = rate/quota limit; 503 = transient demand spike.
+const RETRYABLE_STATUS_CODES = new Set([429, 503]);
+
+// Shared response schema definition
+const COMPOSITION_SCHEMA = {
+  type: Type.OBJECT,
+  properties: {
+    rule: { type: Type.STRING },
+    focalPoints: {
+      type: Type.ARRAY,
+      items: {
+        type: Type.OBJECT,
+        properties: {
+          x: { type: Type.NUMBER },
+          y: { type: Type.NUMBER }
+        },
+        required: ['x', 'y']
+      }
+    },
+    lines: {
+      type: Type.ARRAY,
+      items: {
+        type: Type.OBJECT,
+        properties: {
+          x1: { type: Type.NUMBER },
+          y1: { type: Type.NUMBER },
+          x2: { type: Type.NUMBER },
+          y2: { type: Type.NUMBER },
+          label: { type: Type.STRING }
+        },
+        required: ['x1', 'y1', 'x2', 'y2']
+      }
+    }
+  },
+  required: ['rule', 'focalPoints']
+};
+
+const PROMPT_TEXT = `Analyze the photographic composition of this image.
+You must choose EXACTLY ONE of the following rules that best fits the image:
+"Rule of Thirds", "Golden Ratio", "Golden Triangle", "Geometric Triangles", "Half and Half", "Quarter Frame", "Leading Lines", "Diagonals", "C and S Curves", "Converging Lines", "Frame Within a Frame".
+
+Return a JSON object containing:
+1. "rule": the exact string of the chosen rule.
+2. "focalPoints": array of objects [{"x": number 0-100, "y": number 0-100}] for primary anchor points.
+3. "lines": (optional) array of objects [{"x1": number, "y1": number, "x2": number, "y2": number, "label": string}] representing structural lines.
+
+The x and y coordinates MUST be numbers between 0 and 100, representing percentage coordinates from the top-left (0,0).`;
+
 // Convert an image URL or Blob URL to a Base64 string using fetch and FileReader
 async function urlToBase64(url) {
   if (url.startsWith('data:')) {
@@ -28,6 +88,18 @@ async function urlToBase64(url) {
     reader.onerror = reject;
     reader.readAsDataURL(blob);
   });
+}
+
+// Extract a numeric HTTP status code from a Gemini SDK error object
+function getErrorStatus(err) {
+  // SDK error: err.status is numeric (e.g. 429), or parse from message JSON
+  if (typeof err.status === 'number') return err.status;
+  try {
+    const parsed = JSON.parse(err.message);
+    return parsed?.error?.code ?? null;
+  } catch {
+    return null;
+  }
 }
 
 // Fallback mock data in case API key is missing or network fails
@@ -52,80 +124,66 @@ export async function analyzeComposition(photoUrl) {
     }
   }
 
-  // Option 2: Direct Gemini Client (Requires key restricted by HTTP Referrers in Google Cloud Console)
+  // Option 2: Direct Gemini Client with waterfall model fallback
   if (!client) {
     console.warn("No VITE_GEMINI_API_KEY or VITE_GEMINI_PROXY_URL provided. Returning mock analysis.");
     await new Promise(r => setTimeout(r, 1200));
     return MOCK_ANALYSIS;
   }
 
-  try {
-    const { b64, mimeType } = await urlToBase64(photoUrl);
+  const { b64, mimeType } = await urlToBase64(photoUrl);
 
-    const promptText = `Analyze the photographic composition of this image.
-You must choose EXACTLY ONE of the following rules that best fits the image:
-"Rule of Thirds", "Golden Ratio", "Golden Triangle", "Geometric Triangles", "Half and Half", "Quarter Frame", "Leading Lines", "Diagonals", "C and S Curves", "Converging Lines", "Frame Within a Frame".
+  const contents = [
+    {
+      role: 'user',
+      parts: [
+        { text: PROMPT_TEXT },
+        { inlineData: { data: b64, mimeType } }
+      ]
+    }
+  ];
 
-Return a JSON object containing:
-1. "rule": the exact string of the chosen rule.
-2. "focalPoints": array of objects [{"x": number 0-100, "y": number 0-100}] for primary anchor points.
-3. "lines": (optional) array of objects [{"x1": number, "y1": number, "x2": number, "y2": number, "label": string}] representing structural lines.
+  let lastError = null;
 
-The x and y coordinates MUST be numbers between 0 and 100, representing percentage coordinates from the top-left (0,0).`;
-
-    const response = await client.models.generateContent({
-      model: 'gemini-3.8-flash',
-      contents: [
-        {
-          role: 'user',
-          parts: [
-            { text: promptText },
-            { inlineData: { data: b64, mimeType } }
-          ]
+  for (const model of FALLBACK_MODELS) {
+    try {
+      const response = await client.models.generateContent({
+        model,
+        contents,
+        config: {
+          responseMimeType: 'application/json',
+          responseSchema: COMPOSITION_SCHEMA
         }
-      ],
-      config: {
-        responseMimeType: 'application/json',
-        responseSchema: {
-          type: Type.OBJECT,
-          properties: {
-            rule: { type: Type.STRING },
-            focalPoints: {
-              type: Type.ARRAY,
-              items: {
-                type: Type.OBJECT,
-                properties: {
-                  x: { type: Type.NUMBER },
-                  y: { type: Type.NUMBER }
-                },
-                required: ['x', 'y']
-              }
-            },
-            lines: {
-              type: Type.ARRAY,
-              items: {
-                type: Type.OBJECT,
-                properties: {
-                  x1: { type: Type.NUMBER },
-                  y1: { type: Type.NUMBER },
-                  x2: { type: Type.NUMBER },
-                  y2: { type: Type.NUMBER },
-                  label: { type: Type.STRING }
-                },
-                required: ['x1', 'y1', 'x2', 'y2']
-              }
-            }
-          },
-          required: ['rule', 'focalPoints']
-        }
+      });
+
+      const rawOutput = typeof response.text === 'function' ? response.text() : response.text;
+      const json = typeof rawOutput === 'string' ? JSON.parse(rawOutput) : rawOutput;
+
+      if (model !== FALLBACK_MODELS[0]) {
+        console.info(`[Gemini] Served by fallback model: ${model}`);
       }
-    });
 
-    const rawOutput = typeof response.text === 'function' ? response.text() : response.text;
-    const json = typeof rawOutput === 'string' ? JSON.parse(rawOutput) : rawOutput;
-    return json;
-  } catch (err) {
-    console.error("Gemini Analysis Failed:", err);
-    throw new Error(err.message || "Failed to analyze composition. API Quota exceeded or network error.");
+      return json;
+    } catch (err) {
+      const status = getErrorStatus(err);
+
+      if (RETRYABLE_STATUS_CODES.has(status)) {
+        // Quota or demand spike — silently try the next model
+        console.warn(`[Gemini] ${model} returned ${status}, trying next model...`);
+        lastError = err;
+        continue;
+      }
+
+      // Non-retryable error (auth, bad request, network, etc.) — fail fast
+      console.error(`[Gemini] Non-retryable error from ${model}:`, err);
+      throw new Error(err.message || "Failed to analyze composition.");
+    }
   }
+
+  // All models exhausted — surface the last error to the UI
+  console.error("[Gemini] All models in fallback chain exhausted.");
+  throw new Error(
+    lastError?.message ||
+    "Composition analysis unavailable — all models are currently over quota. Please try again later."
+  );
 }
