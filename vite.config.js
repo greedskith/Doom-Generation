@@ -8,7 +8,15 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['dg-favicon.svg', 'dg-favicon.ico', 'dg-apple-icon.png', 'paper-texture-compressed.jpg'],
+      includeAssets: [
+        'dg-favicon.svg',
+        'dg-favicon.ico',
+        'dg-apple-icon.png',
+        'pwa-192x192.png',
+        'pwa-512x512.png',
+        'pwa-maskable-512x512.png',
+        'paper-texture-compressed.jpg'
+      ],
       manifest: {
         name: 'Doom Generation',
         short_name: 'DG',
@@ -18,14 +26,22 @@ export default defineConfig({
         display: 'standalone',
         icons: [
           {
-            src: '/dg-favicon.png',
+            src: '/pwa-192x192.png',
             sizes: '192x192',
-            type: 'image/png'
+            type: 'image/png',
+            purpose: 'any'
           },
           {
-            src: '/dg-favicon.png',
+            src: '/pwa-512x512.png',
             sizes: '512x512',
-            type: 'image/png'
+            type: 'image/png',
+            purpose: 'any'
+          },
+          {
+            src: '/pwa-maskable-512x512.png',
+            sizes: '512x512',
+            type: 'image/png',
+            purpose: 'maskable'
           }
         ]
       }
