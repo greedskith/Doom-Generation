@@ -424,8 +424,14 @@ function App() {
       }
 
       const dimensions = await getImageDimensions(file);
-      const cloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME || 'dnw1f6vw';
-      const uploadPreset = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET || 'antigravity';
+      const cloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
+      const uploadPreset = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET;
+
+      if (!cloudName || !uploadPreset) {
+        showError("Upload configuration is missing. Please contact support.");
+        setIsUploading(false);
+        return;
+      }
 
       const formData = new FormData();
       formData.append('file', file);
