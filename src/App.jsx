@@ -400,8 +400,7 @@ function App() {
     setIsUploading(true);
     
     try {
-      const adminDoc = await getDoc(doc(db, 'admins', currentUser.email || 'invalid'));
-      const isAdmin = adminDoc.exists();
+      const isAdmin = isUploader;
 
       let statRef = doc(db, 'user_stats', currentUser.uid);
       let statDoc = await getDoc(statRef);
