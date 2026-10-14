@@ -234,7 +234,6 @@ export async function analyzeComposition(photoUrl) {
   // Option 2: Direct Gemini Client with waterfall model fallback
   if (!client) {
     console.warn('No VITE_GEMINI_API_KEY or VITE_GEMINI_PROXY_URL provided. Returning mock analysis.');
-    await new Promise((r) => setTimeout(r, 1200));
     return MOCK_ANALYSIS;
   }
 
