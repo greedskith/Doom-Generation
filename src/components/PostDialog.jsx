@@ -1,92 +1,132 @@
 import React from 'react';
 
+function CloseIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path d="m6 6 12 12M18 6 6 18" />
+    </svg>
+  );
+}
+
 export const PostDialog = ({
   postDialogRef,
   handleBackdropClick,
   closePostDialog,
   handleUpload,
   file,
-  setFile,
+  previewUrl,
+  uploadFormKey,
+  onFileSelected,
   title,
   setTitle,
   isUploading,
   showError
 }) => {
+  const hasPreview = Boolean(previewUrl && file);
+
+  const handleFileChange = (event) => {
+    const selectedFile = event.target.files?.[0];
+    const acceptedTypes = ['image/jpeg', 'image/png', 'image/webp'];
+
+    if (!selectedFile) {
+      onFileSelected(null);
+      return;
+    }
+
+    if (!acceptedTypes.includes(selectedFile.type)) {
+      showError('Choose a JPEG, PNG, or WebP image.');
+      event.target.value = '';
+      onFileSelected(null);
+      return;
+    }
+
+    if (selectedFile.size > 5 * 1024 * 1024) {
+      showError('File size exceeds the 5MB limit.');
+      event.target.value = '';
+      onFileSelected(null);
+      return;
+    }
+
+    onFileSelected(selectedFile);
+  };
+
   return (
     <dialog
       ref={postDialogRef}
-      className="brutalist-dialog post-dialog"
+      className="archive-dialog form-dialog post-dialog"
       aria-labelledby="post-dialog-title"
-      onClick={(e) => handleBackdropClick(e, closePostDialog)}
+      onClick={(event) => handleBackdropClick(event, closePostDialog)}
       onCancel={closePostDialog}
     >
       <div className="dialog-content">
-        <h2 id="post-dialog-title">Post Picture</h2>
+        <header className="dialog-heading">
+          <div>
+            <p className="archive-kicker">Contribution</p>
+            <h2 id="post-dialog-title">Add work</h2>
+            <p>Share one image with the archive.</p>
+          </div>
+          <button type="button" className="icon-button" onClick={closePostDialog} aria-label="Close add work dialog">
+            <CloseIcon />
+          </button>
+        </header>
+
         <form
-          onSubmit={(e) => {
-            e.preventDefault();
+          key={uploadFormKey}
+          className="upload-form"
+          onSubmit={(event) => {
+            event.preventDefault();
             handleUpload();
           }}
-          style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}
         >
-          <div className="form-group" style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-            <label htmlFor="photo-upload" style={{ fontWeight: 'bold' }}>Select Photo</label>
-            <span id="photo-upload-hint" style={{ fontSize: '0.85rem', opacity: 0.8 }}>JPEG, PNG, or WebP only. Max 5MB.</span>
+          <div className="form-field">
             <input
               id="photo-upload"
               name="photo-upload"
               type="file"
-              accept="image/jpeg, image/png, image/webp"
+              accept="image/jpeg,image/png,image/webp"
               aria-describedby="photo-upload-hint"
-              className="input-field"
-              style={{ padding: '0.5rem', border: '2px solid var(--border-color)' }}
-              onChange={(e) => {
-                const selectedFile = e.target.files[0];
-                if (selectedFile) {
-                  if (selectedFile.size > 5 * 1024 * 1024) {
-                    showError("File size exceeds 5MB limit.");
-                    e.target.value = "";
-                    setFile(null);
-                  } else {
-                    setFile(selectedFile);
-                  }
-                } else {
-                  setFile(null);
-                }
-              }}
+              className="file-input"
+              onChange={handleFileChange}
               required
             />
+            <label htmlFor="photo-upload" className={`file-picker ${hasPreview ? 'has-preview' : ''}`}>
+              {hasPreview ? (
+                <>
+                  <img src={previewUrl} alt={`Preview of ${file.name}`} className="upload-preview" />
+                  <span className="file-picker-copy">
+                    <strong>{file.name}</strong>
+                    <span>Choose a different image</span>
+                  </span>
+                </>
+              ) : (
+                <span className="file-picker-copy">
+                  <strong>Choose an image</strong>
+                  <span>JPEG, PNG, or WebP · 5MB maximum</span>
+                </span>
+              )}
+            </label>
+            <p id="photo-upload-hint" className="field-hint">The original proportions will be retained in the archive.</p>
           </div>
 
-          <div className="form-group" style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-            <label htmlFor="photo-title" style={{ fontWeight: 'bold' }}>Title</label>
+          <div className="form-field">
+            <label htmlFor="photo-title">Title</label>
             <input
               id="photo-title"
               name="photo-title"
               type="text"
-              placeholder="e.g. 'MIDNIGHT BLUE'"
+              placeholder="Name the work"
               className="input-field"
               value={title}
-              onChange={(e) => setTitle(e.target.value)}
+              onChange={(event) => setTitle(event.target.value)}
               autoComplete="off"
               required
             />
           </div>
 
-          <div className="modal-actions" style={{ marginTop: '1rem' }}>
-            <button
-              type="button"
-              className="btn btn-secondary"
-              onClick={closePostDialog}
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              className="btn btn-primary"
-              disabled={!file || !title || isUploading}
-            >
-              {isUploading ? '[ UPLOADING... ]' : 'Post'}
+          <div className="modal-actions">
+            <button type="button" className="text-action" onClick={closePostDialog}>Cancel</button>
+            <button type="submit" className="utility-button utility-button-primary" disabled={!file || !title || isUploading}>
+              {isUploading ? 'Adding…' : 'Add to archive'}
             </button>
           </div>
         </form>

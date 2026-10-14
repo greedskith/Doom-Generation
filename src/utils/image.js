@@ -43,3 +43,19 @@ export const getOptimizedUrl = (url, width) => {
   }
   return url;
 };
+
+export const getOptimizedSrcSet = (url, widths = [400, 800, 1200]) => {
+  if (!url) return undefined;
+  try {
+    const parsed = new URL(url);
+    const host = parsed.hostname.toLowerCase();
+    if (host === 'res.cloudinary.com' || host.endsWith('.cloudinary.com')) {
+      return widths
+        .map((w) => `${getOptimizedUrl(url, w)} ${w}w`)
+        .join(', ');
+    }
+  } catch {
+    return undefined;
+  }
+  return undefined;
+};

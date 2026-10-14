@@ -1,16 +1,19 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, Suspense, lazy } from 'react';
 import { flushSync } from 'react-dom';
-import { analyzeComposition } from './services/gemini.js';
 import { signInWithPopup, onAuthStateChanged, signOut } from 'firebase/auth';
-import { collection, onSnapshot, doc, updateDoc, increment, serverTimestamp, query, orderBy, writeBatch, arrayUnion, arrayRemove, getDoc, deleteDoc } from 'firebase/firestore';
+import { collection, onSnapshot, doc, updateDoc, increment, serverTimestamp, query, orderBy, writeBatch, arrayUnion, arrayRemove, getDoc, deleteDoc, setDoc } from 'firebase/firestore';
 import { auth, provider, db } from './firebase.js';
 import { getImageDimensions } from './utils/image.js';
 
 import { AuthButtons } from './components/AuthButtons.jsx';
-import { BuilderDialog } from './components/BuilderDialog.jsx';
-import { PostDialog } from './components/PostDialog.jsx';
-import { Lightbox } from './components/Lightbox.jsx';
 import { PhotoGrid } from './components/PhotoGrid.jsx';
+
+const BuilderDialog = lazy(() => import('./components/BuilderDialog.jsx').then((m) => ({ default: m.BuilderDialog })));
+const PostDialog = lazy(() => import('./components/PostDialog.jsx').then((m) => ({ default: m.PostDialog })));
+const Lightbox = lazy(() => import('./components/Lightbox.jsx').then((m) => ({ default: m.Lightbox })));
+const AdminDashboard = lazy(() => import('./components/AdminDashboard.jsx').then((m) => ({ default: m.AdminDashboard })));
+
+const ADMIN_EMAIL = 'sagarranjan993@gmail.com';
 
 
 function App() {
@@ -20,6 +23,8 @@ function App() {
   const [selectedPhotoId, setSelectedPhotoId] = useState(null);
   const selectedPhoto = photos.find(p => p.id === selectedPhotoId) || null;
   const [file, setFile] = useState(null);
+  const [uploadPreviewUrl, setUploadPreviewUrl] = useState(null);
+  const [uploadFormKey, setUploadFormKey] = useState(0);
   const [title, setTitle] = useState('');
   const [isUploading, setIsUploading] = useState(false);
   const [isEditingTitle, setIsEditingTitle] = useState(false);
@@ -91,12 +96,44 @@ function App() {
   const postDialogRef = useRef(null);
   const lightboxDialogRef = useRef(null);
   const builderDialogRef = useRef(null);
+  const dashboardDialogRef = useRef(null);
   const lastFocusedElementRef = useRef(null);
+  const selectedPhotoIdRef = useRef(null);
   const announcementTimerRef = useRef(null);
   const assertiveTimerRef = useRef(null);
+  const uploadPreviewUrlRef = useRef(null);
 
-  const openBuilderDialog = () => builderDialogRef.current?.showModal();
-  const closeBuilderDialog = () => builderDialogRef.current?.close();
+  useEffect(() => () => {
+    if (uploadPreviewUrlRef.current) {
+      URL.revokeObjectURL(uploadPreviewUrlRef.current);
+    }
+  }, []);
+
+  useEffect(() => {
+    selectedPhotoIdRef.current = selectedPhotoId;
+  }, [selectedPhotoId]);
+
+  const openBuilderDialog = (event) => {
+    lastFocusedElementRef.current = event?.currentTarget || null;
+    builderDialogRef.current?.showModal();
+  };
+
+  const closeBuilderDialog = () => {
+    builderDialogRef.current?.close();
+    lastFocusedElementRef.current?.focus();
+  };
+
+  const openDashboard = (event) => {
+    lastFocusedElementRef.current = event?.currentTarget || null;
+    dashboardDialogRef.current?.showModal();
+  };
+
+  const closeDashboard = () => {
+    dashboardDialogRef.current?.close();
+    lastFocusedElementRef.current?.focus();
+  };
+
+  const isAdminUser = currentUser?.email === ADMIN_EMAIL;
 
   useEffect(() => {
     const unsubscribeAuth = onAuthStateChanged(auth, async (user) => {
@@ -105,8 +142,20 @@ function App() {
         try {
           const adminDoc = await getDoc(doc(db, 'admins', user.email));
           setIsUploader(adminDoc.exists());
-        } catch (e) {
+        } catch {
           setIsUploader(false);
+        }
+        // Track registered user
+        try {
+          await setDoc(doc(db, 'users', user.uid), {
+            email: user.email,
+            displayName: user.displayName || 'Anonymous',
+            photoURL: user.photoURL || null,
+            lastLogin: new Date().toISOString(),
+          }, { merge: true });
+        } catch (e) {
+          // Non-critical — don't block auth flow
+          console.warn('Failed to save user data:', e);
         }
       } else {
         setIsUploader(false);
@@ -122,21 +171,22 @@ function App() {
         id: doc.id,
         ...doc.data()
       }));
+
+      const activePhotoId = selectedPhotoIdRef.current;
+      if (activePhotoId && !fetchedPhotos.some((photo) => photo.id === activePhotoId)) {
+        lightboxDialogRef.current?.close();
+        selectedPhotoIdRef.current = null;
+        setSelectedPhotoId(null);
+        setAnalysisError(null);
+        setIsEditingTitle(false);
+      }
+
       setPhotos(fetchedPhotos);
     }, (err) => {
       console.error("Firestore error:", err);
     });
     return () => unsubscribeDb();
   }, []);
-
-  useEffect(() => {
-    if (selectedPhotoId && !photos.find(p => p.id === selectedPhotoId)) {
-      lightboxDialogRef.current?.close();
-      setSelectedPhotoId(null);
-      setAnalysisError(null);
-      setIsEditingTitle(false);
-    }
-  }, [photos, selectedPhotoId]);
 
   const handleLogin = async () => {
     try {
@@ -150,6 +200,30 @@ function App() {
     await signOut(auth);
   };
 
+  const handleFileSelected = (nextFile) => {
+    if (uploadPreviewUrlRef.current) {
+      URL.revokeObjectURL(uploadPreviewUrlRef.current);
+      uploadPreviewUrlRef.current = null;
+    }
+
+    if (nextFile) {
+      const nextPreviewUrl = URL.createObjectURL(nextFile);
+      uploadPreviewUrlRef.current = nextPreviewUrl;
+      setUploadPreviewUrl(nextPreviewUrl);
+    } else {
+      setUploadPreviewUrl(null);
+    }
+
+    setFile(nextFile);
+  };
+
+  const resetUploadForm = () => {
+    handleFileSelected(null);
+    setTitle('');
+    setIsUploading(false);
+    setUploadFormKey((current) => current + 1);
+  };
+
   const openPostDialog = (e) => {
     lastFocusedElementRef.current = e?.currentTarget || null;
     postDialogRef.current?.showModal();
@@ -157,9 +231,7 @@ function App() {
 
   const closePostDialog = () => {
     postDialogRef.current?.close();
-    setFile(null);
-    setTitle('');
-    setIsUploading(false);
+    resetUploadForm();
     lastFocusedElementRef.current?.focus();
   };
 
@@ -171,12 +243,8 @@ function App() {
     setIsEditingTitle(false);
     setAnalysisError(null);
 
-    // If photo has an existing analysis and visibility hasn't been set yet, show it by default
-    if ((photo.analysis || localAnalyses[photo.id]) && doodleVisiblePhotoIds[photo.id] === undefined) {
-      setDoodleVisiblePhotoIds(prev => ({ ...prev, [photo.id]: true }));
-    }
-
     if (!document.startViewTransition) {
+      selectedPhotoIdRef.current = photo.id;
       setSelectedPhotoId(photo.id);
       lightboxDialogRef.current?.showModal();
       return;
@@ -191,6 +259,7 @@ function App() {
         cardImg.style.viewTransitionName = 'none';
       }
       flushSync(() => {
+        selectedPhotoIdRef.current = photo.id;
         setSelectedPhotoId(photo.id);
       });
       lightboxDialogRef.current?.showModal();
@@ -223,6 +292,7 @@ function App() {
 
     if (!document.startViewTransition) {
       lightboxDialogRef.current?.close();
+      selectedPhotoIdRef.current = null;
       setSelectedPhotoId(null);
       lastFocusedElementRef.current?.focus();
       return;
@@ -241,6 +311,7 @@ function App() {
       }
       flushSync(() => {
         lightboxDialogRef.current?.close();
+        selectedPhotoIdRef.current = null;
         setSelectedPhotoId(null);
       });
       lastFocusedElementRef.current?.focus();
@@ -263,11 +334,11 @@ function App() {
     if (!selectedPhoto || selectedPhoto.userId !== currentUser?.uid) return;
     try {
       await deleteDoc(doc(db, 'photos', selectedPhoto.id));
-      announce("Photo deleted successfully!");
+      announce("Work removed from archive.");
       closeLightbox();
     } catch (err) {
       console.error("Failed to delete photo:", err);
-      showError("Failed to delete photo.");
+      showError("Unable to remove work from archive.");
     }
   };
 
@@ -284,48 +355,42 @@ function App() {
     }
   };
 
+  const handleToggleDoodle = () => {
+    if (!selectedPhoto) return;
+    setDoodleVisiblePhotoIds((prev) => ({
+      ...prev,
+      [selectedPhoto.id]: !prev[selectedPhoto.id]
+    }));
+  };
+
   const handleAnalyse = async () => {
     if (!selectedPhoto) return;
     const targetId = selectedPhoto.id;
     const targetUrl = selectedPhoto.url;
-    const existingAnalysis = selectedPhoto.analysis || localAnalyses[targetId];
-
-    // If analysis already exists for this photo, toggle its doodle overlay
-    if (existingAnalysis) {
-      const nextVisible = !doodleVisiblePhotoIds[targetId];
-      setDoodleVisiblePhotoIds(prev => ({
-        ...prev,
-        [targetId]: nextVisible
-      }));
-      announce(nextVisible ? "Visual doodle overlaid." : "Visual doodle hidden.");
-      return;
-    }
-
-    // Guard against multiple clicks while currently analyzing this photo
     if (analyzingPhotoId === targetId) return;
 
-    announce("Analyzing composition...");
+    announce("Reading frame composition...");
     setAnalyzingPhotoId(targetId);
     setAnalysisError(null);
 
     try {
-      const result = await analyzeComposition(targetUrl);
-      setLocalAnalyses(prev => ({ ...prev, [targetId]: result }));
-      setDoodleVisiblePhotoIds(prev => ({ ...prev, [targetId]: true }));
+      const { analyzeComposition, sanitizeAnalysis } = await import('./services/gemini.js');
+      const raw = await analyzeComposition(targetUrl);
+      const result = sanitizeAnalysis(raw);
+      setLocalAnalyses((prev) => ({ ...prev, [targetId]: result }));
       try {
         await updateDoc(doc(db, 'photos', targetId), { analysis: result });
       } catch (firestoreErr) {
-        // If Firestore write fails (e.g. non-owner), analysis remains active in local session
         console.info("Analysis preserved in local session:", firestoreErr?.message);
       }
-      announce("Analysis complete. Visual doodle overlaid.");
+      announce("Composition reading complete.");
     } catch (err) {
       if (selectedPhotoId === targetId) {
         setAnalysisError(err.message);
       }
       announce(`Error analyzing composition: ${err.message}`, true);
     } finally {
-      setAnalyzingPhotoId(prev => (prev === targetId ? null : prev));
+      setAnalyzingPhotoId((prev) => (prev === targetId ? null : prev));
     }
   };
 
@@ -353,7 +418,7 @@ function App() {
       }
 
       if (!isAdmin && uploadsThisWeek >= 5) {
-        showError("[ REJECTED: WEEKLY LIMIT REACHED ]");
+        showError("Weekly upload quota reached (maximum 5 works per week).");
         setIsUploading(false);
         return;
       }
@@ -418,7 +483,7 @@ function App() {
 
   const handleLike = async (photoId) => {
     if (!currentUser) {
-      showError("PLEASE SIGN IN TO LIKE.");
+      showError("Please sign in to appreciate works.");
       return;
     }
     const photoRef = doc(db, 'photos', photoId);
@@ -448,102 +513,97 @@ function App() {
 
   return (
     <>
-      {/* ARIA Announcers */}
-      <div role="status" aria-live="polite" aria-atomic="true" style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', clip: 'rect(0,0,0,0)' }}>
+      <div role="status" aria-live="polite" aria-atomic="true" className="sr-only">
         {announcement}
       </div>
-      <div role="alert" aria-live="assertive" aria-atomic="true" style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', clip: 'rect(0,0,0,0)' }}>
+      <div role="alert" aria-live="assertive" aria-atomic="true" className="sr-only">
         {assertiveAnnouncement}
       </div>
 
       {globalError && (
-        <div role="alert" className="error-toast" style={{
-          position: 'fixed',
-          bottom: '2rem',
-          right: '2rem',
-          backgroundColor: '#ff3366',
-          color: '#ffffff',
-          padding: '1rem 1.5rem',
-          border: '2px solid #000',
-          boxShadow: '4px 4px 0px #000',
-          zIndex: 1000,
-          fontWeight: 'bold',
-          fontFamily: 'monospace'
-        }}>
+        <div role="alert" className="error-toast">
           {globalError}
         </div>
       )}
 
-      <header className="navbar">
-        <a href="/" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', textDecoration: 'none' }} aria-label="Home">
-          <svg className="navbar-logo" role="img" aria-label="Doom Generation Logo" viewBox="0 0 100 80" fill="none" style={{ overflow: 'visible', flexShrink: 0 }}>
-            {/* The 'd' in Sand */}
-            <path d="M 35 40 C 35 25, 15 25, 15 40 C 15 55, 35 55, 35 40 L 35 15 L 35 45 C 35 60, 45 55, 50 40" 
-                  stroke="var(--text-primary)" strokeWidth="6" strokeLinecap="round" strokeLinejoin="round" 
-                  style={{ filter: 'drop-shadow(2px 2px 0px var(--accent))' }} />
-            {/* The 'g' in Neon Cyan */}
-            <path d="M 50 40 C 50 25, 70 25, 70 40 C 70 55, 50 55, 50 40 M 70 25 L 70 60 C 70 80, 50 75, 50 65" 
-                  stroke="var(--accent)" strokeWidth="6" strokeLinecap="round" strokeLinejoin="round" 
-                  style={{ filter: 'drop-shadow(0 0 6px var(--accent))' }} />
-          </svg>
-          <h1 style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', clip: 'rect(0,0,0,0)' }}>Doom Generation Photo Gallery</h1>
-        </a>
-        <AuthButtons
+      <div className="app-shell">
+        <header className="site-rail">
+          <a href="/" className="brand-lockup" aria-label="Doom Generation home">
+            <span className="brand-monogram" aria-hidden="true">DG</span>
+            <span className="brand-wordmark">Doom Generation</span>
+          </a>
+          <p className="rail-context" aria-hidden="true">Open image archive</p>
+          <AuthButtons
+            currentUser={currentUser}
+            isUploader={isUploader}
+            isAdminUser={isAdminUser}
+            openBuilderDialog={openBuilderDialog}
+            openPostDialog={openPostDialog}
+            openDashboard={openDashboard}
+            handleLogin={handleLogin}
+            handleLogout={handleLogout}
+          />
+        </header>
+
+        <PhotoGrid
+          photos={photos}
+          lcpThreshold={lcpThreshold}
           currentUser={currentUser}
-          isUploader={isUploader}
-          openBuilderDialog={openBuilderDialog}
-          openPostDialog={openPostDialog}
-          handleLogin={handleLogin}
-          handleLogout={handleLogout}
+          openLightbox={openLightbox}
+          handleLike={handleLike}
         />
-      </header>
+      </div>
 
-      <PhotoGrid
-        photos={photos}
-        lcpThreshold={lcpThreshold}
-        currentUser={currentUser}
-        openLightbox={openLightbox}
-        handleLike={handleLike}
-      />
+      <Suspense fallback={null}>
+        <PostDialog
+          postDialogRef={postDialogRef}
+          handleBackdropClick={handleBackdropClick}
+          closePostDialog={closePostDialog}
+          handleUpload={handleUpload}
+          file={file}
+          previewUrl={uploadPreviewUrl}
+          uploadFormKey={uploadFormKey}
+          onFileSelected={handleFileSelected}
+          title={title}
+          setTitle={setTitle}
+          isUploading={isUploading}
+          showError={showError}
+        />
 
-      <PostDialog
-        postDialogRef={postDialogRef}
-        handleBackdropClick={handleBackdropClick}
-        closePostDialog={closePostDialog}
-        handleUpload={handleUpload}
-        file={file}
-        setFile={setFile}
-        title={title}
-        setTitle={setTitle}
-        isUploading={isUploading}
-        showError={showError}
-      />
+        <BuilderDialog
+          builderDialogRef={builderDialogRef}
+          handleBackdropClick={handleBackdropClick}
+          closeBuilderDialog={closeBuilderDialog}
+        />
 
-      <BuilderDialog
-        builderDialogRef={builderDialogRef}
-        handleBackdropClick={handleBackdropClick}
-        closeBuilderDialog={closeBuilderDialog}
-      />
+        <AdminDashboard
+          currentUser={currentUser}
+          dashboardDialogRef={dashboardDialogRef}
+          handleBackdropClick={handleBackdropClick}
+          closeDashboard={closeDashboard}
+        />
 
-      <Lightbox
-        lightboxDialogRef={lightboxDialogRef}
-        handleBackdropClick={handleBackdropClick}
-        closeLightbox={closeLightbox}
-        selectedPhoto={selectedPhoto}
-        currentUser={currentUser}
-        isEditingTitle={isEditingTitle}
-        setIsEditingTitle={setIsEditingTitle}
-        editTitleValue={editTitleValue}
-        setEditTitleValue={setEditTitleValue}
-        handleSaveTitle={handleSaveTitle}
-        handleDeletePhoto={handleDeletePhoto}
-        handleAnalyse={handleAnalyse}
-        isCurrentPhotoAnalyzing={isCurrentPhotoAnalyzing}
-        currentAnalysis={currentAnalysis}
-        isDoodleVisible={isDoodleVisible}
-        analysisError={analysisError}
-        handleLike={handleLike}
-      />
+        <Lightbox
+          lightboxDialogRef={lightboxDialogRef}
+          handleBackdropClick={handleBackdropClick}
+          closeLightbox={closeLightbox}
+          selectedPhoto={selectedPhoto}
+          currentUser={currentUser}
+          isEditingTitle={isEditingTitle}
+          setIsEditingTitle={setIsEditingTitle}
+          editTitleValue={editTitleValue}
+          setEditTitleValue={setEditTitleValue}
+          handleSaveTitle={handleSaveTitle}
+          handleDeletePhoto={handleDeletePhoto}
+          handleAnalyse={handleAnalyse}
+          isCurrentPhotoAnalyzing={isCurrentPhotoAnalyzing}
+          currentAnalysis={currentAnalysis}
+          isDoodleVisible={isDoodleVisible}
+          handleToggleDoodle={handleToggleDoodle}
+          analysisError={analysisError}
+          handleLike={handleLike}
+        />
+      </Suspense>
     </>
   );
 }

@@ -32,6 +32,7 @@ const COMPOSITION_SCHEMA = {
   type: Type.OBJECT,
   properties: {
     rule: { type: Type.STRING },
+    observation: { type: Type.STRING },
     focalPoints: {
       type: Type.ARRAY,
       items: {
@@ -51,26 +52,26 @@ const COMPOSITION_SCHEMA = {
           x1: { type: Type.NUMBER },
           y1: { type: Type.NUMBER },
           x2: { type: Type.NUMBER },
-          y2: { type: Type.NUMBER },
-          label: { type: Type.STRING }
+          y2: { type: Type.NUMBER }
         },
         required: ['x1', 'y1', 'x2', 'y2']
       }
     }
   },
-  required: ['rule', 'focalPoints']
+  required: ['rule', 'observation']
 };
 
-const PROMPT_TEXT = `Analyze the photographic composition of this image.
+const PROMPT_TEXT = `Analyze the photographic composition of this image with curatorial precision.
 You must choose EXACTLY ONE of the following rules that best fits the image:
 "Rule of Thirds", "Golden Ratio", "Golden Triangle", "Geometric Triangles", "Half and Half", "Quarter Frame", "Leading Lines", "Diagonals", "C and S Curves", "Converging Lines", "Frame Within a Frame".
 
 Return a JSON object containing:
 1. "rule": the exact string of the chosen rule.
-2. "focalPoints": array of objects [{"x": number 0-100, "y": number 0-100}] for primary anchor points.
-3. "lines": (optional) array of objects [{"x1": number, "y1": number, "x2": number, "y2": number, "label": string}] representing structural lines.
+2. "observation": a concise 1-2 sentence curatorial observation explaining why the eye lands where it does and how negative space or perspective anchors the frame.
+3. "focalPoints": (optional) array of at most 2 objects [{"x": number 0-100, "y": number 0-100}] for primary anchor points.
+4. "lines": (optional) array of at most 2 objects [{"x1": number, "y1": number, "x2": number, "y2": number}] for structural directional axes. Do NOT add labels.
 
-The x and y coordinates MUST be numbers between 0 and 100, representing percentage coordinates from the top-left (0,0).`;
+All coordinates MUST be numbers between 0 and 100.`;
 
 // Optimize image URL for Gemini Vision (compress & cap dimensions to 1024px to prevent multi-megabyte payloads)
 function getAnalysisImageUrl(url) {
@@ -172,10 +173,45 @@ function getErrorStatus(err) {
   return null;
 }
 
+export function sanitizeAnalysis(data) {
+  if (!data || typeof data !== 'object') {
+    return {
+      rule: 'Composition note',
+      observation: 'A quiet frame anchored by light, geometry, and negative space.',
+      focalPoints: [],
+      lines: []
+    };
+  }
+
+  const clamp = (val) => Math.max(0, Math.min(100, typeof val === 'number' && !Number.isNaN(val) ? val : 50));
+  const rule = typeof data.rule === 'string' && data.rule.trim() ? data.rule.trim() : 'Composition note';
+  const observation = typeof data.observation === 'string' && data.observation.trim()
+    ? data.observation.trim()
+    : 'A quiet photographic frame anchored by light, geometry, and negative space.';
+
+  const focalPoints = Array.isArray(data.focalPoints)
+    ? data.focalPoints
+        .filter((p) => p && typeof p.x === 'number' && typeof p.y === 'number' && !Number.isNaN(p.x) && !Number.isNaN(p.y))
+        .slice(0, 2)
+        .map((p) => ({ x: clamp(p.x), y: clamp(p.y) }))
+    : [];
+
+  const lines = Array.isArray(data.lines)
+    ? data.lines
+        .filter((l) => l && typeof l.x1 === 'number' && typeof l.y1 === 'number' && typeof l.x2 === 'number' && typeof l.y2 === 'number')
+        .slice(0, 2)
+        .map((l) => ({ x1: clamp(l.x1), y1: clamp(l.y1), x2: clamp(l.x2), y2: clamp(l.y2) }))
+    : [];
+
+  return { rule, observation, focalPoints, lines };
+}
+
 // Fallback mock data in case API key is missing or network fails
 const MOCK_ANALYSIS = {
-  rule: "Rule of Thirds",
-  focalPoints: [{ x: 66.66, y: 33.33 }]
+  rule: 'Rule of Thirds',
+  observation: 'The horizon rests along the lower horizontal division while primary visual weight anchors the upper-right third, giving deliberate breathing room to negative space.',
+  focalPoints: [{ x: 66.66, y: 33.33 }],
+  lines: []
 };
 
 export async function analyzeComposition(photoUrl) {
@@ -188,16 +224,17 @@ export async function analyzeComposition(photoUrl) {
         body: JSON.stringify({ photoUrl })
       });
       if (!res.ok) throw new Error(`Proxy error: ${res.statusText}`);
-      return await res.json();
+      const data = await res.json();
+      return sanitizeAnalysis(data);
     } catch (err) {
-      console.warn("Backend proxy failed, attempting client fallback:", err);
+      console.warn('Backend proxy failed, attempting client fallback:', err);
     }
   }
 
   // Option 2: Direct Gemini Client with waterfall model fallback
   if (!client) {
-    console.warn("No VITE_GEMINI_API_KEY or VITE_GEMINI_PROXY_URL provided. Returning mock analysis.");
-    await new Promise(r => setTimeout(r, 1200));
+    console.warn('No VITE_GEMINI_API_KEY or VITE_GEMINI_PROXY_URL provided. Returning mock analysis.');
+    await new Promise((r) => setTimeout(r, 1200));
     return MOCK_ANALYSIS;
   }
 
@@ -216,7 +253,7 @@ export async function analyzeComposition(photoUrl) {
   let lastError = null;
   const now = Date.now();
   // Filter models that are not in an active cooldown window
-  const activeModels = FALLBACK_MODELS.filter(m => (modelCooldowns.get(m) || 0) <= now);
+  const activeModels = FALLBACK_MODELS.filter((m) => (modelCooldowns.get(m) || 0) <= now);
   const modelsToTry = activeModels.length > 0 ? activeModels : FALLBACK_MODELS;
 
   for (const model of modelsToTry) {
@@ -237,7 +274,7 @@ export async function analyzeComposition(photoUrl) {
         console.info(`[Gemini] Served by fallback model: ${model}`);
       }
 
-      return json;
+      return sanitizeAnalysis(json);
     } catch (err) {
       const status = getErrorStatus(err);
 

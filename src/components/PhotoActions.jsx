@@ -7,39 +7,43 @@ export const PhotoActions = ({
   setIsEditingTitle,
   setEditTitleValue,
   handleDeletePhoto,
-  handleAnalyse,
+  handleToggleNotes,
   isCurrentPhotoAnalyzing,
-  currentAnalysis,
-  isDoodleVisible,
-  closeLightbox
+  isNotesOpen
 }) => {
+  const ownsPhoto = currentUser && selectedPhoto.userId === currentUser.uid;
+  const notesLabel = isCurrentPhotoAnalyzing
+    ? 'Reading frame…'
+    : isNotesOpen
+      ? 'Hide notes'
+      : 'Composition notes';
+
   return (
-    <div className="modal-actions">
-      {currentUser && selectedPhoto.userId === currentUser.uid && !isEditingTitle && (
-        <>
-          <button type="button" className="btn btn-secondary" onClick={() => { setIsEditingTitle(true); setEditTitleValue(selectedPhoto.title); }}>[ EDIT ]</button>
-          <button type="button" className="btn btn-secondary" onClick={handleDeletePhoto} style={{ color: '#ff4d4d', borderColor: '#ff4d4d' }}>[ DELETE ]</button>
-        </>
+    <div className="photo-actions" aria-label="Photo actions">
+      {ownsPhoto && !isEditingTitle && (
+        <div className="owner-actions">
+          <button
+            type="button"
+            className="text-action"
+            onClick={() => {
+              setEditTitleValue(selectedPhoto.title);
+              setIsEditingTitle(true);
+            }}
+          >
+            Edit
+          </button>
+          <button type="button" className="text-action text-action-danger" onClick={handleDeletePhoto}>
+            Delete
+          </button>
+        </div>
       )}
       <button
         type="button"
-        className="btn btn-primary"
-        onClick={handleAnalyse}
+        className={`text-action ${isNotesOpen ? 'text-action-active' : 'text-action-primary'}`}
+        onClick={handleToggleNotes}
         disabled={isCurrentPhotoAnalyzing}
       >
-        {isCurrentPhotoAnalyzing
-          ? '[ ANALYSING... ]'
-          : currentAnalysis
-            ? (isDoodleVisible ? '[ HIDE DOODLE ]' : '[ SHOW DOODLE ]')
-            : '[ ANALYSE COMPOSITION ]'}
-      </button>
-      <button
-        type="button"
-        className="btn btn-secondary lightbox-close-btn"
-        onClick={closeLightbox}
-        aria-label="Close photo preview"
-      >
-        [ CLOSE ]
+        {notesLabel}
       </button>
     </div>
   );

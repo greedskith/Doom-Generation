@@ -95,8 +95,19 @@ service cloud.firestore {
 
     match /admins/{email} {
       allow get: if isAuthenticated() && request.auth.token.email == email;
-      allow list: if false;
-      allow write: if false;
+      allow list: if isAdmin();
+      allow create, update: if isAdmin();
+      allow delete: if isAdmin() && email != request.auth.token.email;
+    }
+
+    match /users/{userId} {
+      allow read: if isAdmin();
+      allow create, update: if isAuthenticated() && request.auth.uid == userId &&
+        request.resource.data.keys().hasOnly(['email', 'displayName', 'photoURL', 'lastLogin']) &&
+        request.resource.data.email is string &&
+        request.resource.data.displayName is string &&
+        request.resource.data.lastLogin is string;
+      allow delete: if false;
     }
 
     match /user_stats/{userId} {

@@ -18,9 +18,9 @@ export default defineConfig({
         'paper-texture-compressed.jpg'
       ],
       manifest: {
-        name: 'Doom Generation',
-        short_name: 'DG',
-        description: 'A brutalist photo gallery.',
+        name: 'Doom Generation — After-hours Archive',
+        short_name: 'Doom Generation',
+        description: 'An after-hours archive of contemporary photography.',
         theme_color: '#031211',
         background_color: '#031211',
         display: 'standalone',
@@ -47,4 +47,15 @@ export default defineConfig({
       }
     })
   ],
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes('firebase')) {
+            return 'firebase';
+          }
+        }
+      }
+    }
+  }
 })
