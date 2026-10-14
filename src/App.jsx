@@ -1,58 +1,17 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { flushSync } from 'react-dom';
 import { analyzeComposition } from './services/gemini.js';
-import { CompositionDoodle } from './components/CompositionDoodle.jsx';
-
 import { signInWithPopup, onAuthStateChanged, signOut } from 'firebase/auth';
 import { collection, onSnapshot, doc, updateDoc, increment, serverTimestamp, query, orderBy, writeBatch, arrayUnion, arrayRemove, getDoc, deleteDoc } from 'firebase/firestore';
 import { auth, provider, db } from './firebase.js';
+import { getImageDimensions } from './utils/image.js';
 
+import { AuthButtons } from './components/AuthButtons.jsx';
+import { BuilderDialog } from './components/BuilderDialog.jsx';
+import { PostDialog } from './components/PostDialog.jsx';
+import { Lightbox } from './components/Lightbox.jsx';
+import { PhotoGrid } from './components/PhotoGrid.jsx';
 
-const getImageDimensions = (file) => {
-  return new Promise((resolve) => {
-    if (typeof window === 'undefined' || !window.Image) {
-      resolve({ width: 800, height: 800 });
-      return;
-    }
-    const img = new Image();
-    const objectUrl = URL.createObjectURL(file);
-    img.onload = () => {
-      URL.revokeObjectURL(objectUrl);
-      resolve({ width: img.naturalWidth || 800, height: img.naturalHeight || 800 });
-    };
-    img.onerror = () => {
-      URL.revokeObjectURL(objectUrl);
-      resolve({ width: 800, height: 800 });
-    };
-    img.src = objectUrl;
-  });
-};
-
-const getOptimizedUrl = (url, width) => {
-  if (!url) return url;
-  try {
-    const parsed = new URL(url);
-    const host = parsed.hostname.toLowerCase();
-
-    if (host === 'res.cloudinary.com' || host.endsWith('.cloudinary.com')) {
-      const parts = url.split('/upload/');
-      if (parts.length === 2) {
-        return `${parts[0]}/upload/f_auto,q_auto,w_${width}/${parts[1]}`;
-      }
-    }
-
-    if (host === 'images.unsplash.com' || host.endsWith('.unsplash.com')) {
-      parsed.searchParams.set('w', width.toString());
-      parsed.searchParams.set('auto', 'format');
-      if (!parsed.searchParams.has('fit')) parsed.searchParams.set('fit', 'crop');
-      if (!parsed.searchParams.has('q')) parsed.searchParams.set('q', '80');
-      return parsed.toString();
-    }
-  } catch {
-    return url;
-  }
-  return url;
-};
 
 function App() {
   const [currentUser, setCurrentUser] = useState(null);
@@ -529,328 +488,62 @@ function App() {
           </svg>
           <h1 style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', clip: 'rect(0,0,0,0)' }}>Doom Generation Photo Gallery</h1>
         </a>
-        <div className="auth-container">
-          <button type="button" className="btn btn-secondary" onClick={openBuilderDialog}>
-            [ BUILDER ]
-          </button>
-          {currentUser ? (
-            <>
-              <span className="user-badge">{currentUser.displayName}</span>
-              {isUploader && (
-                <button
-                  type="button"
-                  className="btn btn-primary"
-                  onClick={openPostDialog}
-                  aria-haspopup="dialog"
-                >
-                  POST
-                </button>
-              )}
-              <button
-                type="button"
-                className="btn btn-secondary"
-                onClick={handleLogout}
-              >
-                [ LOGOUT ]
-              </button>
-            </>
-          ) : (
-            <button
-              type="button"
-              className="btn btn-primary"
-              onClick={handleLogin}
-            >
-              SIGN IN
-            </button>
-          )}
-        </div>
+        <AuthButtons
+          currentUser={currentUser}
+          isUploader={isUploader}
+          openBuilderDialog={openBuilderDialog}
+          openPostDialog={openPostDialog}
+          handleLogin={handleLogin}
+          handleLogout={handleLogout}
+        />
       </header>
 
-      <main className="gallery-container">
-        {photos.length === 0 && (
-          <div style={{ textAlign: 'center', gridColumn: '1 / -1', padding: '4rem' }}>
-            <h2>GALLERY EMPTY</h2>
-            <p>The real-time database is currently empty.</p>
-          </div>
-        )}
-        {photos.map((photo, index) => {
-          const isLcpCandidate = index < lcpThreshold;
-          const photoWidth = photo.width || 800;
-          const photoHeight = photo.height || 800;
-          return (
-            <article
-              key={photo.id}
-              data-photo-id={photo.id}
-              className="gallery-item"
-            >
-              <button
-                type="button"
-                className="image-container"
-                style={{ aspectRatio: `${photoWidth} / ${photoHeight}` }}
-                aria-haspopup="dialog"
-                aria-label={`View photo ${photo.title} by ${photo.author}`}
-                onClick={(e) => openLightbox(photo, e)}
-              >
-                <img
-                  src={getOptimizedUrl(photo.url, 800)}
-                  alt={photo.title}
-                  width={photoWidth}
-                  height={photoHeight}
-                  {...(isLcpCandidate
-                    ? { fetchpriority: "high" }
-                    : { loading: "lazy" })}
-                />
-                <div className="author-signature" aria-hidden="true">
-                  {photo.author}
-                </div>
-              </button>
-              <div className="item-info">
-                <div className="item-details">
-                  <h3>{photo.title}</h3>
-                </div>
-                <button
-                  type="button"
-                  className={`like-btn ${currentUser && photo.likedBy?.includes(currentUser.uid) ? 'liked' : ''}`}
-                  aria-pressed={currentUser && photo.likedBy?.includes(currentUser.uid)}
-                  aria-label={`Like ${photo.title}, currently ${photo.likes || 0} likes`}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleLike(photo.id);
-                  }}
-                >
-                  + LIKE [{photo.likes || 0}]
-                </button>
-              </div>
-            </article>
-          );
-        })}
-      </main>
+      <PhotoGrid
+        photos={photos}
+        lcpThreshold={lcpThreshold}
+        currentUser={currentUser}
+        openLightbox={openLightbox}
+        handleLike={handleLike}
+      />
 
-      {/* Native <dialog> for Post Modal */}
-      <dialog
-        ref={postDialogRef}
-        className="brutalist-dialog post-dialog"
-        aria-labelledby="post-dialog-title"
-        onClick={(e) => handleBackdropClick(e, closePostDialog)}
-        onCancel={closePostDialog}
-      >
-        <div className="dialog-content">
-          <h2 id="post-dialog-title">Post Picture</h2>
-          <form 
-            onSubmit={(e) => { 
-              e.preventDefault(); 
-              handleUpload(); 
-            }}
-            style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}
-          >
-            <div className="form-group" style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-              <label htmlFor="photo-upload" style={{ fontWeight: 'bold' }}>Select Photo</label>
-              <span id="photo-upload-hint" style={{ fontSize: '0.85rem', opacity: 0.8 }}>JPEG, PNG, or WebP only. Max 5MB.</span>
-              <input
-                id="photo-upload"
-                name="photo-upload"
-                type="file"
-                accept="image/jpeg, image/png, image/webp"
-                aria-describedby="photo-upload-hint"
-                className="input-field"
-                style={{ padding: '0.5rem', border: '2px solid var(--border-color)' }}
-                onChange={(e) => {
-                  const selectedFile = e.target.files[0];
-                  if (selectedFile) {
-                    if (selectedFile.size > 5 * 1024 * 1024) {
-                      showError("File size exceeds 5MB limit.");
-                      e.target.value = "";
-                      setFile(null);
-                    } else {
-                      setFile(selectedFile);
-                    }
-                  } else {
-                    setFile(null);
-                  }
-                }}
-                required
-              />
-            </div>
-            
-            <div className="form-group" style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-              <label htmlFor="photo-title" style={{ fontWeight: 'bold' }}>Title</label>
-              <input
-                id="photo-title"
-                name="photo-title"
-                type="text"
-                placeholder="e.g. 'MIDNIGHT BLUE'"
-                className="input-field"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                autoComplete="off"
-                required
-              />
-            </div>
+      <PostDialog
+        postDialogRef={postDialogRef}
+        handleBackdropClick={handleBackdropClick}
+        closePostDialog={closePostDialog}
+        handleUpload={handleUpload}
+        file={file}
+        setFile={setFile}
+        title={title}
+        setTitle={setTitle}
+        isUploading={isUploading}
+        showError={showError}
+      />
 
-            <div className="modal-actions" style={{ marginTop: '1rem' }}>
-              <button
-                type="button"
-                className="btn btn-secondary"
-                onClick={closePostDialog}
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                className="btn btn-primary"
-                disabled={!file || !title || isUploading}
-              >
-                {isUploading ? '[ UPLOADING... ]' : 'Post'}
-              </button>
-            </div>
-          </form>
-        </div>
-      </dialog>
+      <BuilderDialog
+        builderDialogRef={builderDialogRef}
+        handleBackdropClick={handleBackdropClick}
+        closeBuilderDialog={closeBuilderDialog}
+      />
 
-      {/* About the Builder Dialog */}
-      <dialog ref={builderDialogRef} className="brutalist-dialog post-dialog" aria-labelledby="builder-dialog-title" onClick={(e) => handleBackdropClick(e, closeBuilderDialog)} onCancel={closeBuilderDialog}>
-        <div className="dialog-content">
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
-            <h2 id="builder-dialog-title" style={{ margin: 0, textBox: 'trim-both cap alphabetic' }}>ABOUT THE BUILDER</h2>
-            <button type="button" className="btn btn-secondary" onClick={closeBuilderDialog} aria-label="Close builder dialog" style={{ padding: '0.5rem 1rem', flexShrink: 0 }}>[ X ]</button>
-          </div>
-          <div style={{ display: 'flex', gap: '2rem', alignItems: 'flex-start', flexWrap: 'wrap' }}>
-            <img
-              src="/builder.jpg"
-              alt="Sagar Ranjan"
-              style={{
-                width: '160px',
-                height: '160px',
-                objectFit: 'cover',
-                objectPosition: 'top',
-                border: 'none',
-                flexShrink: 0,
-                filter: 'grayscale(20%)',
-              }}
-            />
-            <div style={{ flex: 1, minWidth: '200px', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-              <div>
-                <strong style={{ fontSize: 'clamp(1.4rem, 3vw, 1.8rem)', display: 'block', marginBottom: '0.5rem', color: 'var(--accent)' }}>SAGAR RANJAN</strong>
-                <p style={{ fontSize: '1rem', lineHeight: '1.7', margin: 0, color: 'var(--text-primary)', opacity: 0.85 }}>
-                  He built this.
-                </p>
-              </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                <a href="https://github.com/greedskith" target="_blank" rel="noopener noreferrer" className="btn btn-primary" style={{ textDecoration: 'none', textAlign: 'center', display: 'block', padding: '0.75rem', minWidth: '120px' }}>[ GITHUB ]</a>
-                <a href="https://twitter.com/greedskith" target="_blank" rel="noopener noreferrer" className="btn btn-primary" style={{ textDecoration: 'none', textAlign: 'center', display: 'block', padding: '0.75rem', minWidth: '120px' }}>[ TWITTER ]</a>
-              </div>
-            </div>
-          </div>
-        </div>
-      </dialog>
-
-
-
-
-      {/* Native <dialog> for Photo Lightbox */}
-      <dialog
-        ref={lightboxDialogRef}
-        className="brutalist-dialog lightbox-dialog"
-        aria-labelledby="lightbox-title"
-        onClick={(e) => handleBackdropClick(e, closeLightbox)}
-        onCancel={closeLightbox}
-      >
-        {selectedPhoto && (
-          <div className="lightbox-content">
-            <div className="lightbox-header">
-              {isEditingTitle ? (
-                <form onSubmit={handleSaveTitle} style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                  <input 
-                    type="text" 
-                    value={editTitleValue} 
-                    onChange={(e) => setEditTitleValue(e.target.value)}
-                    autoFocus
-                    style={{ background: 'transparent', border: '2px solid var(--accent)', color: 'var(--text-primary)', padding: '0.25rem 0.5rem', fontFamily: 'inherit', fontSize: '1.25rem' }}
-                  />
-                  <button type="submit" className="btn btn-primary">[ SAVE ]</button>
-                  <button type="button" className="btn btn-secondary" onClick={() => setIsEditingTitle(false)}>[ CANCEL ]</button>
-                </form>
-              ) : (
-                <h2 id="lightbox-title">{selectedPhoto.title}</h2>
-              )}
-              <div className="modal-actions">
-                {currentUser && selectedPhoto.userId === currentUser.uid && !isEditingTitle && (
-                  <>
-                    <button type="button" className="btn btn-secondary" onClick={() => { setIsEditingTitle(true); setEditTitleValue(selectedPhoto.title); }}>[ EDIT ]</button>
-                    <button type="button" className="btn btn-secondary" onClick={handleDeletePhoto} style={{ color: '#ff4d4d', borderColor: '#ff4d4d' }}>[ DELETE ]</button>
-                  </>
-                )}
-                <button
-                  type="button"
-                  className="btn btn-primary"
-                  onClick={handleAnalyse}
-                  disabled={isCurrentPhotoAnalyzing}
-                >
-                  {isCurrentPhotoAnalyzing
-                    ? '[ ANALYSING... ]'
-                    : currentAnalysis
-                      ? (isDoodleVisible ? '[ HIDE DOODLE ]' : '[ SHOW DOODLE ]')
-                      : '[ ANALYSE COMPOSITION ]'}
-                </button>
-                <button
-                  type="button"
-                  className="btn btn-secondary lightbox-close-btn"
-                  onClick={closeLightbox}
-                  aria-label="Close photo preview"
-                >
-                  [ CLOSE ]
-                </button>
-              </div>
-            </div>
-            <div className="lightbox-image-wrap">
-              <div className="lightbox-image-inner">
-                <img
-                  src={getOptimizedUrl(selectedPhoto.url, 1600)}
-                  alt={selectedPhoto.title}
-                  className="lightbox-image"
-                  {...(selectedPhoto.width ? { width: selectedPhoto.width } : {})}
-                  {...(selectedPhoto.height ? { height: selectedPhoto.height } : {})}
-                />
-                <CompositionDoodle analysis={currentAnalysis} visible={isDoodleVisible} />
-                {isCurrentPhotoAnalyzing && (
-                  <div className="scanner-container">
-                    <div className="scanner-line"></div>
-                  </div>
-                )}
-                {analysisError && (
-                  <div className="error-toast" style={{
-                    position: 'absolute', top: '10px', right: '10px',
-                    background: 'var(--bg)', color: 'var(--accent)',
-                    border: '2px solid var(--accent)', padding: '10px',
-                    zIndex: 100, display: 'flex', gap: '10px',
-                    alignItems: 'center', fontWeight: 'bold'
-                  }}>
-                    <div className="error-text">[ ERROR: {analysisError} ]</div>
-                    <button className="brutal-btn" onClick={handleAnalyse}>[ RETRY ]</button>
-                  </div>
-                )}
-                <div className="lightbox-signature" aria-hidden="true">
-                  {selectedPhoto.author}
-                </div>
-              </div>
-            </div>
-            <div className="lightbox-footer">
-              <div className="lightbox-meta">
-                <span>ARTIST: <strong>{selectedPhoto.author}</strong></span>
-              </div>
-              <button
-                type="button"
-                className={`like-btn ${currentUser && selectedPhoto.likedBy?.includes(currentUser.uid) ? 'liked' : ''}`}
-                aria-pressed={currentUser && selectedPhoto.likedBy?.includes(currentUser.uid)}
-                aria-label={`Like ${selectedPhoto.title}, currently ${selectedPhoto.likes || 0} likes`}
-                onClick={() => handleLike(selectedPhoto.id)}
-              >
-                + LIKE [{selectedPhoto.likes || 0}]
-              </button>
-            </div>
-          </div>
-        )}
-      </dialog>
+      <Lightbox
+        lightboxDialogRef={lightboxDialogRef}
+        handleBackdropClick={handleBackdropClick}
+        closeLightbox={closeLightbox}
+        selectedPhoto={selectedPhoto}
+        currentUser={currentUser}
+        isEditingTitle={isEditingTitle}
+        setIsEditingTitle={setIsEditingTitle}
+        editTitleValue={editTitleValue}
+        setEditTitleValue={setEditTitleValue}
+        handleSaveTitle={handleSaveTitle}
+        handleDeletePhoto={handleDeletePhoto}
+        handleAnalyse={handleAnalyse}
+        isCurrentPhotoAnalyzing={isCurrentPhotoAnalyzing}
+        currentAnalysis={currentAnalysis}
+        isDoodleVisible={isDoodleVisible}
+        analysisError={analysisError}
+        handleLike={handleLike}
+      />
     </>
   );
 }
