@@ -1,0 +1,77 @@
+[
+  {
+    "verdict": "confirmed",
+    "fingerprint": "firebase-storage-read-access",
+    "title": "Overly Permissive Firebase Storage Read Access",
+    "description": "The Firebase Storage security rules allowed unauthenticated users to read objects from the /uploads bucket, exposing potentially sensitive user data.",
+    "root_cause": "The storage.rules file contained an `allow read: if true;` rule which granted global read access without requiring authentication.",
+    "intended_behavior": "Only authenticated users should be able to read files from the /uploads bucket.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "storage.rules",
+        "line": 6,
+        "scope": "firebase.storage",
+        "description": "Global read access is permitted by `allow read: if true;`."
+      },
+      {
+        "kind": "sink",
+        "file": "storage.rules",
+        "line": 6,
+        "scope": "firebase.storage",
+        "description": "The overly permissive rule exposes all objects under /uploads/{imageId} to anyone."
+      }
+    ],
+    "evidence": [
+      {
+        "file": "storage.rules",
+        "line": 6,
+        "description": "The `allow read: if true;` directive."
+      }
+    ],
+    "conditions": [
+      {
+        "kind": "authentication_level",
+        "description": "An attacker does not need an account or valid session."
+      },
+      {
+        "kind": "data_state",
+        "description": "An attacker knows or can guess object paths (e.g., /uploads/image123.jpg)."
+      }
+    ],
+    "execution": {
+      "attacker_perspective": "As an unauthenticated user, I can send an HTTP GET request to the Firebase Storage endpoint to download any image if I know its name.",
+      "payloads": ["curl https://firebasestorage.googleapis.com/v0/b/project-id.appspot.com/o/uploads%2Fimage123.jpg?alt=media"],
+      "instructions": [
+        "Obtain the Firebase Storage endpoint URL for the target project.",
+        "Send an HTTP GET request for an object in the /uploads bucket.",
+        "Observe that the object is returned successfully."
+      ],
+      "observed_result": "The server returns a 200 OK status and the contents of the image, despite the lack of authentication."
+    },
+    "remediation": {
+      "strategy": "Change the read rule in storage.rules to require authentication by checking `request.auth != null`.",
+      "code_changes": [
+        {
+          "file_name": "storage.rules",
+          "fixed_code": "      allow read: if request.auth != null;"
+        }
+      ]
+    },
+    "severity": {
+      "likelihood": {
+        "score": "high",
+        "reason": "Exploitation only requires making a standard HTTP GET request. Object names might be guessable or leaked elsewhere."
+      },
+      "impact": {
+        "score": "medium",
+        "reason": "Unauthenticated users can access arbitrary uploaded images, violating confidentiality, though they cannot modify or delete them."
+      },
+      "overall_severity": "medium"
+    },
+    "confidence": {
+      "score": "high",
+      "reason": "The rule explicitly and unambiguously allows public read access."
+    }
+  }
+]
