@@ -400,11 +400,14 @@ function App() {
     setIsUploading(true);
     
     try {
-      const adminDoc = await getDoc(doc(db, 'admins', currentUser.email || 'invalid'));
-      const isAdmin = adminDoc.exists();
-
       let statRef = doc(db, 'user_stats', currentUser.uid);
-      let statDoc = await getDoc(statRef);
+
+      const [adminDoc, statDoc] = await Promise.all([
+        getDoc(doc(db, 'admins', currentUser.email || 'invalid')),
+        getDoc(statRef)
+      ]);
+
+      const isAdmin = adminDoc.exists();
       let uploadsThisWeek = 0;
       const now = Date.now();
       const oneWeek = 7 * 24 * 60 * 60 * 1000;
