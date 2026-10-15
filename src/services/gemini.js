@@ -206,14 +206,6 @@ export function sanitizeAnalysis(data) {
   return { rule, observation, focalPoints, lines };
 }
 
-// Fallback mock data in case API key is missing or network fails
-const MOCK_ANALYSIS = {
-  rule: 'Rule of Thirds',
-  observation: 'The horizon rests along the lower horizontal division while primary visual weight anchors the upper-right third, giving deliberate breathing room to negative space.',
-  focalPoints: [{ x: 66.66, y: 33.33 }],
-  lines: []
-};
-
 export async function analyzeComposition(photoUrl) {
   // Option 1: Secure Backend Proxy endpoint (if configured)
   if (proxyUrl) {
@@ -233,9 +225,7 @@ export async function analyzeComposition(photoUrl) {
 
   // Option 2: Direct Gemini Client with waterfall model fallback
   if (!client) {
-    console.warn('No VITE_GEMINI_API_KEY or VITE_GEMINI_PROXY_URL provided. Returning mock analysis.');
-    await new Promise((r) => setTimeout(r, 1200));
-    return MOCK_ANALYSIS;
+    throw new Error('No VITE_GEMINI_API_KEY or VITE_GEMINI_PROXY_URL provided. Cannot analyze composition.');
   }
 
   const { b64, mimeType } = await urlToBase64(photoUrl);
