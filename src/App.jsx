@@ -400,11 +400,14 @@ function App() {
     setIsUploading(true);
     
     try {
-      const adminDoc = await getDoc(doc(db, 'admins', currentUser.email || 'invalid'));
-      const isAdmin = adminDoc.exists();
-
       let statRef = doc(db, 'user_stats', currentUser.uid);
-      let statDoc = await getDoc(statRef);
+
+      const [adminDoc, statDoc] = await Promise.all([
+        getDoc(doc(db, 'admins', currentUser.email || 'invalid')),
+        getDoc(statRef)
+      ]);
+
+      const isAdmin = adminDoc.exists();
       let uploadsThisWeek = 0;
       const now = Date.now();
       const oneWeek = 7 * 24 * 60 * 60 * 1000;
@@ -424,8 +427,14 @@ function App() {
       }
 
       const dimensions = await getImageDimensions(file);
-      const cloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME || 'dnw1f6vw';
-      const uploadPreset = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET || 'antigravity';
+      const cloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
+      const uploadPreset = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET;
+
+      if (!cloudName || !uploadPreset) {
+        showError("Upload configuration is missing. Please contact support.");
+        setIsUploading(false);
+        return;
+      }
 
       const formData = new FormData();
       formData.append('file', file);
